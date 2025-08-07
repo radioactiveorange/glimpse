@@ -110,6 +110,7 @@ class ClickableLabel(QLabel):
     mouse_nav = True  # Always enabled
     back = Signal()
     forward = Signal()
+    wheel_zoom = Signal(float)  # NEW: Signal for zooming, emits delta
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
@@ -119,6 +120,12 @@ class ClickableLabel(QLabel):
             elif event.button() == Qt.ForwardButton:
                 self.forward.emit()
         super().mousePressEvent(event)
+    def wheelEvent(self, event):
+        # Only emit if Ctrl is pressed or always? Let's do always for now
+        angle = event.angleDelta().y()
+        if angle != 0:
+            self.wheel_zoom.emit(angle)
+        super().wheelEvent(event)
 
 class RandomImageViewer(QMainWindow):
     def __init__(self):
@@ -144,6 +151,7 @@ class RandomImageViewer(QMainWindow):
         self.timer = QTimer(self)
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self._on_timer_tick)
+        self.zoom_factor = 1.0  # NEW: Track zoom
         self.init_ui()
         self.update_image_info()
         self._update_title()
@@ -169,6 +177,7 @@ class RandomImageViewer(QMainWindow):
         self.image_label.clicked.connect(self.show_random_image)
         self.image_label.back.connect(self.show_previous_image)
         self.image_label.forward.connect(self.show_next_image)
+        self.image_label.wheel_zoom.connect(self.handle_wheel_zoom)  # NEW: connect wheel zoom
         # Now set up context menu
         self.image_label.setContextMenuPolicy(Qt.CustomContextMenu)
         self.image_label.customContextMenuRequested.connect(self.show_context_menu)
@@ -216,6 +225,15 @@ class RandomImageViewer(QMainWindow):
             self.show_previous_image()
         elif event.key() == Qt.Key_Right:
             self.show_next_image()
+        elif event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.zoom_in()
+            elif event.key() == Qt.Key_Minus:
+                self.zoom_out()
+            elif event.key() == Qt.Key_0:
+                self.reset_zoom()
+            else:
+                super().keyPressEvent(event)
         else:
             super().keyPressEvent(event)
 
@@ -337,7 +355,7 @@ class RandomImageViewer(QMainWindow):
             transform = QTransform().scale(1, -1)
             image = image.transformed(transform)
         pixmap = QPixmap.fromImage(image)
-        size = self.image_label.size()
+        size = self.image_label.size() * self.zoom_factor  # NEW: scale by zoom
         scaled = pixmap.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(scaled)
         self.image_label.setToolTip("")
@@ -525,6 +543,7 @@ class RandomImageViewer(QMainWindow):
         open_action = QAction("Open Folder", self)
         open_action.triggered.connect(self.choose_folder)
         menu.addAction(open_action)
+        menu.addSeparator()
         prev_action = QAction("Previous Image", self)
         prev_action.triggered.connect(self.show_previous_image)
         menu.addAction(prev_action)
@@ -533,7 +552,21 @@ class RandomImageViewer(QMainWindow):
         menu.addAction(next_action)
         open_explorer_action = QAction("Open in Explorer", self)
         open_explorer_action.triggered.connect(self.open_current_in_explorer)
-        menu.addAction(open_explorer_action)     
+        menu.addAction(open_explorer_action)
+        menu.addSeparator()
+        # --- Zoom actions ---
+        zoom_in_action = QAction("Zoom In", self)
+        zoom_in_action.setShortcut("Ctrl++")
+        zoom_in_action.triggered.connect(self.zoom_in)
+        menu.addAction(zoom_in_action)
+        zoom_out_action = QAction("Zoom Out", self)
+        zoom_out_action.setShortcut("Ctrl+-")
+        zoom_out_action.triggered.connect(self.zoom_out)
+        menu.addAction(zoom_out_action)
+        reset_zoom_action = QAction("Reset Zoom", self)
+        reset_zoom_action.setShortcut("Ctrl+0")
+        reset_zoom_action.triggered.connect(self.reset_zoom)
+        menu.addAction(reset_zoom_action)
         menu.addSeparator()
         # --- Timer ---
         timer_action = QAction("Enable Timer", self)
@@ -605,6 +638,28 @@ class RandomImageViewer(QMainWindow):
             subprocess.Popen(["open", folder])
         else:
             subprocess.Popen(["xdg-open", folder])
+
+    def handle_wheel_zoom(self, angle):
+        # angle is in 1/8th degree steps, so 120 per notch
+        if angle > 0:
+            self.zoom_in()
+        else:
+            self.zoom_out()
+
+    def zoom_in(self):
+        self.zoom_factor = min(self.zoom_factor * 1.15, 8.0)
+        if self.current_image:
+            self.display_image(self.current_image)
+
+    def zoom_out(self):
+        self.zoom_factor = max(self.zoom_factor / 1.15, 0.1)
+        if self.current_image:
+            self.display_image(self.current_image)
+
+    def reset_zoom(self):
+        self.zoom_factor = 1.0
+        if self.current_image:
+            self.display_image(self.current_image)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
