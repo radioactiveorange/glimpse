@@ -6,10 +6,10 @@ import subprocess
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QFileDialog, QVBoxLayout, QWidget,
     QListWidget, QListWidgetItem, QSplitter, QSpinBox, QCheckBox,
-    QStatusBar, QToolBar, QToolButton, QSizePolicy,
+    QStatusBar, QToolBar, QToolButton, QSizePolicy, QComboBox, QMenu, QInputDialog
 )
-from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QFont, QIcon
-from PySide6.QtCore import Qt, QTimer, QSize, QElapsedTimer
+from PySide6.QtGui import QPixmap, QPainter, QColor, QPen, QFont, QIcon, QImage, QTransform, QAction
+from PySide6.QtCore import Qt, QTimer, QSize, QElapsedTimer, QSettings, Signal
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.gif'}
 
@@ -105,96 +105,62 @@ class CircularCountdown(QWidget):
             painter.setPen(QPen(QColor("#80b2ff"), 3))
             painter.drawArc(rect, 90 * 16, -angle)
 
+class ClickableLabel(QLabel):
+    clicked = Signal()
+    mouse_nav = True  # Always enabled
+    back = Signal()
+    forward = Signal()
+    wheel_zoom = Signal(float)  # NEW: Signal for zooming, emits delta
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit()
+        elif self.mouse_nav:
+            if event.button() == Qt.BackButton:
+                self.back.emit()
+            elif event.button() == Qt.ForwardButton:
+                self.forward.emit()
+        super().mousePressEvent(event)
+    def wheelEvent(self, event):
+        # Only emit if Ctrl is pressed or always? Let's do always for now
+        angle = event.angleDelta().y()
+        if angle != 0:
+            self.wheel_zoom.emit(angle)
+        super().wheelEvent(event)
+
 class RandomImageViewer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setFocusPolicy(Qt.StrongFocus)
         self.setWindowTitle("Random Image Viewer")
         self.setGeometry(100, 100, 950, 650)
-        self.folder = None
-        self.images = []
+        self.settings = QSettings("random-image-viewer", "RandomImageViewer")
+        last_folder = self.settings.value("last_folder", type=str)
+        if last_folder and os.path.exists(last_folder):
+            self.folder = last_folder
+        else:
+            self.folder = os.getcwd()
+        self.images = get_images_in_folder(self.folder)
         self.history = []
         self.current_image = None
         self.current_index = -1
         self.history_index = -1  # NEW: For navigation
-
-        self.timer_interval = 60  # seconds
+        self.timer_interval = self.settings.value("timer_interval", 60, type=int)
         self.timer_remaining = 0
-        self._auto_advance_active = False
-
+        self._auto_advance_active = self.settings.value("auto_advance_enabled", False, type=bool)
+        self.show_history = self.settings.value("show_history_panel", False, type=bool)
         self.timer = QTimer(self)
         self.timer.setInterval(1000)
         self.timer.timeout.connect(self._on_timer_tick)
-
+        self.zoom_factor = 1.0  # NEW: Track zoom
         self.init_ui()
+        self.update_image_info()
+        self._update_title()
+        self._initial_image_shown = False
 
     def init_ui(self):
-        toolbar = QToolBar("Main Toolbar")
-        toolbar.setIconSize(QSize(20, 20))
-        self.addToolBar(toolbar)
-        toolbar.setMovable(False)
-        toolbar.setStyleSheet("QToolBar { spacing: 4px; }")
-
-        open_btn = QToolButton()
-        open_btn.setText("📁")
-        open_btn.setToolTip("Open Folder")
-        open_btn.setFixedSize(24, 24)
-        open_btn.clicked.connect(self.choose_folder)
-        toolbar.addWidget(open_btn)
-
-        spacer = QWidget()
-        spacer.setFixedWidth(4)  # Or whatever feels best
-        toolbar.addWidget(spacer)
-
-        next_btn = QToolButton()
-        next_btn.setText("🎲")
-        next_btn.setToolTip("Show Next Random Image")
-        next_btn.setFixedSize(24, 24)
-        next_btn.clicked.connect(self._manual_next_image)
-        toolbar.addWidget(next_btn)
-
-        spacer = QWidget()
-        spacer.setFixedWidth(4)
-        toolbar.addWidget(spacer)
-
-        self.timer_button = QToolButton()
-        self.timer_button.setCheckable(True)
-        self.timer_button.setText("⚡")  # or "🔛"
-        self.timer_button.setToolTip("Toggle Auto Advance")
-        self.timer_button.setFixedSize(24, 24)
-        self.timer_button.toggled.connect(self.toggle_timer)
-        toolbar.addWidget(self.timer_button)
-
-        spacer = QWidget()
-        spacer.setFixedWidth(4)
-        toolbar.addWidget(spacer)
-
-        self.timer_spin = QSpinBox()
-        self.timer_spin.setRange(1, 3600)
-        self.timer_spin.setValue(self.timer_interval)
-        self.timer_spin.setSuffix(" s")
-        self.timer_spin.setFixedHeight(24)
-        self.timer_spin.setFixedWidth(60)
-        self.timer_spin.valueChanged.connect(self.update_timer_interval)
-        toolbar.addWidget(self.timer_spin)
-
-        spacer = QWidget()
-        spacer.setFixedWidth(12)
-        toolbar.addWidget(spacer)
-
-        self.circle_timer = CircularCountdown(self.timer_spin.value())
-        toolbar.addWidget(self.circle_timer)
-
-        toolbar.addSeparator()
-
-        self.show_history_checkbox = QCheckBox("History")
-        self.show_history_checkbox.setChecked(False)
-        self.show_history_checkbox.setFixedHeight(24)
-        self.show_history_checkbox.stateChanged.connect(self.toggle_history_panel)
-        toolbar.addWidget(self.show_history_checkbox)
-
-        toolbar.addStretch = lambda: toolbar.addWidget(QWidget())
-        toolbar.addStretch()
+        # Remove toolbar and all buttons
+        # self.toolbar = QToolBar("Main Toolbar")
+        # self.addToolBar(self.toolbar)
 
         central_splitter = QSplitter(Qt.Horizontal)
         self.setCentralWidget(central_splitter)
@@ -203,11 +169,22 @@ class RandomImageViewer(QMainWindow):
         image_layout = QVBoxLayout(image_widget)
         image_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.image_label = QLabel("Open a folder to start", alignment=Qt.AlignCenter)
+        self.image_label = ClickableLabel("Open a folder to start", alignment=Qt.AlignCenter)
         self.image_label.setScaledContents(False)
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.image_label.setToolTip("")
+        self.image_label.clicked.connect(self.show_random_image)
+        self.image_label.back.connect(self.show_previous_image)
+        self.image_label.forward.connect(self.show_next_image)
+        self.image_label.wheel_zoom.connect(self.handle_wheel_zoom)  # NEW: connect wheel zoom
+        # Now set up context menu
+        self.image_label.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.image_label.customContextMenuRequested.connect(self.show_context_menu)
+        # Remove manual calls to toggle_xxx for settings
+        # self.toggle_mouse_nav(self.mouse_nav_checkbox.checkState())
+        # self.toggle_dominant_color(self.dominant_color_checkbox.checkState())
+        # self.toggle_grayscale(self.grayscale_button.isChecked())
 
         image_layout.addWidget(self.image_label)
         image_widget.setLayout(image_layout)
@@ -219,23 +196,44 @@ class RandomImageViewer(QMainWindow):
         self.history_list.hide()
         central_splitter.addWidget(self.history_list)
         central_splitter.setSizes([900, 100])
-
-        self.status = QStatusBar()
-        self.setStatusBar(self.status)
+        # Now set visibility
+        self.history_list.setVisible(self.show_history)
 
         self.path_label = QLabel()
 
-        self.statusBar().addPermanentWidget(self.path_label)
         self.path_label.linkActivated.connect(self.open_in_explorer)
 
         self.update_image_info()
         self._update_title()
+
+        # Remove from toolbar: self.circle_timer = CircularCountdown(...)
+        # Instead, add as overlay after self.image_label is created
+        self.circle_timer = CircularCountdown(self.timer_interval, self.image_label)
+        self.circle_timer.move(self.image_label.width() - 36, self.image_label.height() - 36)
+        self.circle_timer.hide()
+        self.image_label.resizeEvent = self.overlay_timer_resize_event(self.image_label.resizeEvent)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        if not self._initial_image_shown and self.images:
+            self.show_random_image()
+            self._initial_image_shown = True
+            self._reset_timer()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Left:
             self.show_previous_image()
         elif event.key() == Qt.Key_Right:
             self.show_next_image()
+        elif event.modifiers() & Qt.ControlModifier:
+            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
+                self.zoom_in()
+            elif event.key() == Qt.Key_Minus:
+                self.zoom_out()
+            elif event.key() == Qt.Key_0:
+                self.reset_zoom()
+            else:
+                super().keyPressEvent(event)
         else:
             super().keyPressEvent(event)
 
@@ -243,25 +241,35 @@ class RandomImageViewer(QMainWindow):
         if self.history_index > 0:
             self.history_index -= 1
             img_path = self.history[self.history_index]
+            self.flipped_h = False
+            self.flipped_v = False
             self.display_image(img_path)
             self.current_image = img_path
             self.update_image_info(img_path)
             self.set_status_path(img_path)
             if self._auto_advance_active:
-                self.timer_remaining = self.timer_spin.value()
+                self.timer_remaining = self.timer_interval
                 self._update_ring()
 
     def show_next_image(self):
         if self.history_index < len(self.history) - 1:
             self.history_index += 1
             img_path = self.history[self.history_index]
+            self.flipped_h = False
+            self.flipped_v = False
             self.display_image(img_path)
             self.current_image = img_path
             self.update_image_info(img_path)
             self.set_status_path(img_path)
             if self._auto_advance_active:
-                self.timer_remaining = self.timer_spin.value()
+                self.timer_remaining = self.timer_interval
                 self._update_ring()
+        else:
+            self.show_random_image()
+
+    def show_next_or_random_image(self):
+        if self.history_index < len(self.history) - 1:
+            self.show_next_image()
         else:
             self.show_random_image()
 
@@ -269,12 +277,15 @@ class RandomImageViewer(QMainWindow):
         folder = QFileDialog.getExistingDirectory(self, "Select Image Folder")
         if folder:
             self.folder = folder
+            self.settings.setValue("last_folder", folder)
             self.images = get_images_in_folder(folder)
             self.history.clear()
             self.history_list.clear()
             self.history_list.repaint()
             self.current_image = None
             self.history_index = -1  # Reset history navigation
+            self.flipped_h = False
+            self.flipped_v = False
             self.update_image_info()
             self._update_title()
             if self.images:
@@ -283,26 +294,33 @@ class RandomImageViewer(QMainWindow):
                 self.image_label.setText("No images found in selected folder or its subfolders.")
             self._reset_timer()
 
-    def _update_title(self):
+    def _update_title(self, img_path=None, info=None):
         count = len(self.images)
         folder_name = os.path.basename(self.folder) if self.folder else ""
-        self.setWindowTitle(f"Random Image Viewer - {folder_name} ({count} images found)")
+        if img_path and info:
+            base = os.path.basename(img_path)
+            self.setWindowTitle(f"Random Image Viewer - {base} ({info}) - {img_path}")
+        else:
+            self.setWindowTitle(f"Random Image Viewer - {folder_name} ({count} images found)")
 
     def update_image_info(self, img_path=None):
         if img_path is None or not os.path.exists(img_path):
-            self.status.showMessage("")
+            self._update_title()
             return
         base = os.path.basename(img_path)
         pixmap = QPixmap(img_path)
         if not pixmap.isNull():
-            info = f"{base} – {pixmap.width()}x{pixmap.height()}"
+            info = f"{pixmap.width()}x{pixmap.height()}"
         else:
             info = base
-        self.status.showMessage(info)
+        # Update title with image info
+        self._update_title(img_path, info)
 
     def show_random_image(self):
         if not self.images:
             return
+        self.flipped_h = False
+        self.flipped_v = False
         available = [img for img in self.images if img not in self.history]
         if not available:
             self.history.clear()
@@ -315,7 +333,7 @@ class RandomImageViewer(QMainWindow):
         self.update_image_info(img_path)
         self.set_status_path(img_path)
         if self._auto_advance_active:
-            self.timer_remaining = self.timer_spin.value()
+            self.timer_remaining = self.timer_interval
             self._update_ring()
 
     def _manual_next_image(self):
@@ -325,13 +343,38 @@ class RandomImageViewer(QMainWindow):
         pixmap = QPixmap(img_path)
         if pixmap.isNull():
             self.image_label.setText("Cannot load image.")
-            self.status.showMessage(os.path.basename(img_path))
             return
-        size = self.image_label.size()
+        # Apply transformations
+        image = pixmap.toImage()
+        if self.settings.value("grayscale_enabled", False, type=bool):
+            image = image.convertToFormat(QImage.Format_Grayscale8)
+        if self.flipped_h:
+            transform = QTransform().scale(-1, 1)
+            image = image.transformed(transform)
+        if self.flipped_v:
+            transform = QTransform().scale(1, -1)
+            image = image.transformed(transform)
+        pixmap = QPixmap.fromImage(image)
+        size = self.image_label.size() * self.zoom_factor  # NEW: scale by zoom
         scaled = pixmap.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self.image_label.setPixmap(scaled)
         self.image_label.setToolTip("")
         self.current_image = img_path
+        # Set background according to dropdown
+        mode = self.settings.value("bg_mode", "Black")
+        if mode == "Adaptive Color":
+            self.set_adaptive_bg(img_path)
+        elif mode == "Gray":
+            self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
+        else:
+            self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
+        # Update title with image info
+        pixmap = QPixmap(img_path)
+        if not pixmap.isNull():
+            info = f"{pixmap.width()}x{pixmap.height()}"
+        else:
+            info = os.path.basename(img_path)
+        self._update_title(img_path, info)
 
     def resizeEvent(self, event):
         if self.current_image:
@@ -377,22 +420,61 @@ class RandomImageViewer(QMainWindow):
             self.update_image_info(img_path)
             self.set_status_path(img_path)
             if self._auto_advance_active:
-                self.timer_remaining = self.timer_spin.value()
+                self.timer_remaining = self.timer_interval
                 self._update_ring()
 
     def toggle_history_panel(self, checked):
         self.history_list.setVisible(bool(checked))
-
-    def update_timer_interval(self, value):
-        self.timer_interval = value
-        self.circle_timer.set_total_time(value)
-        if self._auto_advance_active:
-            self.timer_remaining = value
-            self._update_ring()
+        self.settings.setValue("show_history_panel", bool(checked))
 
     def toggle_timer(self, checked):
         self._auto_advance_active = bool(checked)
+        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
         self._reset_timer()
+
+    def change_bg_mode(self, mode):
+        self.settings.setValue("bg_mode", mode)
+        self.display_image(self.current_image) if self.current_image else None
+
+    def toggle_grayscale(self, checked):
+        self.settings.setValue("grayscale_enabled", checked)
+        if checked:
+            self.image_label.parentWidget().setStyleSheet("background-color: #3b7dd8; color: #fff; border-radius: 4px;")
+        else:
+            self.image_label.parentWidget().setStyleSheet("")
+        self.display_image(self.current_image) if self.current_image else None
+
+    def flip_horizontal(self):
+        self.flipped_h = not self.flipped_h
+        self.display_image(self.current_image) if self.current_image else None
+
+    def flip_vertical(self):
+        self.flipped_v = not self.flipped_v
+        self.display_image(self.current_image) if self.current_image else None
+
+    def set_adaptive_bg(self, img_path):
+        try:
+            pixmap = QPixmap(img_path)
+            if pixmap.isNull():
+                return
+            image = pixmap.toImage()
+            w, h = image.width(), image.height()
+            # Downsample for speed
+            step = max(1, min(w, h) // 64)
+            colors = {}
+            for x in range(0, w, step):
+                for y in range(0, h, step):
+                    c = QColor(image.pixel(x, y)).rgb() & 0xFFFFFF
+                    colors[c] = colors.get(c, 0) + 1
+            if not colors:
+                return
+            dom_rgb = max(colors, key=colors.get)
+            r = (dom_rgb >> 16) & 0xFF
+            g = (dom_rgb >> 8) & 0xFF
+            b = dom_rgb & 0xFF
+            self.image_label.parentWidget().setStyleSheet(f"background-color: rgb({r},{g},{b});")
+        except Exception:
+            pass
 
     def set_status_path(self, image_path):
         # For Windows, convert slashes and prepend file:///
@@ -419,16 +501,26 @@ class RandomImageViewer(QMainWindow):
         else:  # linux
             subprocess.Popen(["xdg-open", folder])
 
+    def overlay_timer_resize_event(self, original_resize_event):
+        def new_resize_event(event):
+            # Call the original resize event
+            if original_resize_event:
+                original_resize_event(event)
+            # Move the timer to bottom-right
+            self.circle_timer.move(self.image_label.width() - 36, self.image_label.height() - 36)
+        return new_resize_event
+
     def _reset_timer(self):
         if self._auto_advance_active and self.images:
             self.timer.stop()
-            self.timer_remaining = self.timer_spin.value()
-            self.circle_timer.set_total_time(self.timer_spin.value())
+            self.timer_remaining = self.timer_interval
             self._update_ring()
             self.timer.start()
+            self.circle_timer.show()
         else:
             self.timer.stop()
             self.circle_timer.set_remaining_time(0)
+            self.circle_timer.hide()
 
     def _on_timer_tick(self):
         if not self._auto_advance_active or not self.images:
@@ -442,8 +534,132 @@ class RandomImageViewer(QMainWindow):
             self._update_ring()
 
     def _update_ring(self):
-        self.circle_timer.set_total_time(self.timer_spin.value())
+        self.circle_timer.set_total_time(self.timer_interval)
         self.circle_timer.set_remaining_time(self.timer_remaining)
+
+    def show_context_menu(self, pos):
+        menu = QMenu(self)
+        # --- Main actions ---
+        open_action = QAction("Open Folder", self)
+        open_action.triggered.connect(self.choose_folder)
+        menu.addAction(open_action)
+        menu.addSeparator()
+        prev_action = QAction("Previous Image", self)
+        prev_action.triggered.connect(self.show_previous_image)
+        menu.addAction(prev_action)
+        next_action = QAction("Next Random Image", self)
+        next_action.triggered.connect(self.show_next_or_random_image)
+        menu.addAction(next_action)
+        open_explorer_action = QAction("Open in Explorer", self)
+        open_explorer_action.triggered.connect(self.open_current_in_explorer)
+        menu.addAction(open_explorer_action)
+        menu.addSeparator()
+        # --- Zoom actions ---
+        zoom_in_action = QAction("Zoom In", self)
+        zoom_in_action.setShortcut("Ctrl++")
+        zoom_in_action.triggered.connect(self.zoom_in)
+        menu.addAction(zoom_in_action)
+        zoom_out_action = QAction("Zoom Out", self)
+        zoom_out_action.setShortcut("Ctrl+-")
+        zoom_out_action.triggered.connect(self.zoom_out)
+        menu.addAction(zoom_out_action)
+        reset_zoom_action = QAction("Reset Zoom", self)
+        reset_zoom_action.setShortcut("Ctrl+0")
+        reset_zoom_action.triggered.connect(self.reset_zoom)
+        menu.addAction(reset_zoom_action)
+        menu.addSeparator()
+        # --- Timer ---
+        timer_action = QAction("Enable Timer", self)
+        timer_action.setCheckable(True)
+        timer_action.setChecked(self._auto_advance_active)
+        timer_action.toggled.connect(self.toggle_timer)
+        menu.addAction(timer_action)
+        # Timer interval submenu
+        timer_menu = QMenu("Timer Interval", self)
+        for label, value in [("30s", 30), ("60s", 60), ("5m", 300), ("10m", 600)]:
+            act = QAction(label, self)
+            act.setCheckable(True)
+            act.setChecked(self.timer_interval == value)
+            act.triggered.connect(lambda checked, v=value: self.set_timer_interval(v))
+            timer_menu.addAction(act)
+        custom_act = QAction("Custom...", self)
+        custom_act.triggered.connect(self.set_custom_timer_interval)
+        timer_menu.addAction(custom_act)
+        menu.addMenu(timer_menu)
+        menu.addSeparator()
+        # --- Settings ---
+        grayscale_action = QAction("Grayscale", self)
+        grayscale_action.setCheckable(True)
+        grayscale_action.setChecked(self.settings.value("grayscale_enabled", False, type=bool))
+        grayscale_action.toggled.connect(self.toggle_grayscale)
+        menu.addAction(grayscale_action)
+        flip_h_action = QAction("Flip Horizontal", self)
+        flip_h_action.triggered.connect(self.flip_horizontal)
+        menu.addAction(flip_h_action)
+        flip_v_action = QAction("Flip Vertical", self)
+        flip_v_action.triggered.connect(self.flip_vertical)
+        menu.addAction(flip_v_action)
+        history_action = QAction("Show History Panel", self)
+        history_action.setCheckable(True)
+        history_action.setChecked(self.settings.value("show_history_panel", False, type=bool))
+        history_action.toggled.connect(self.toggle_history_panel)
+        menu.addAction(history_action)
+        # Background color submenu
+        bg_menu = QMenu("Background Color", self)
+        current_bg = self.settings.value("bg_mode", "Black")
+        for mode in ["Black", "Gray", "Adaptive Color"]:
+            act = QAction(mode, self)
+            act.setCheckable(True)
+            act.setChecked(current_bg == mode)
+            act.triggered.connect(lambda checked, m=mode: self.change_bg_mode(m))
+            bg_menu.addAction(act)
+        menu.addMenu(bg_menu)
+        menu.exec(self.image_label.mapToGlobal(pos))
+
+    def set_timer_interval(self, value):
+        self.timer_interval = value
+        self.settings.setValue("timer_interval", value)
+        self.timer_remaining = value
+        self._update_ring()
+
+    def set_custom_timer_interval(self):
+        val, ok = QInputDialog.getInt(self, "Custom Timer Interval", "Seconds:", self.timer_interval, 1, 3600)
+        if ok:
+            self.set_timer_interval(val)
+
+    def open_current_in_explorer(self):
+        if not self.current_image:
+            return
+        path = os.path.abspath(self.current_image)
+        folder = os.path.dirname(path)
+        if os.name == "nt":
+            os.startfile(folder)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", folder])
+        else:
+            subprocess.Popen(["xdg-open", folder])
+
+    def handle_wheel_zoom(self, angle):
+        # angle is in 1/8th degree steps, so 120 per notch
+        if angle > 0:
+            self.zoom_in()
+        else:
+            self.zoom_out()
+
+    def zoom_in(self):
+        self.zoom_factor = min(self.zoom_factor * 1.15, 8.0)
+        if self.current_image:
+            self.display_image(self.current_image)
+
+    def zoom_out(self):
+        self.zoom_factor = max(self.zoom_factor / 1.15, 0.1)
+        if self.current_image:
+            self.display_image(self.current_image)
+
+    def reset_zoom(self):
+        self.zoom_factor = 1.0
+        if self.current_image:
+            self.display_image(self.current_image)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
