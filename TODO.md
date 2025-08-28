@@ -13,7 +13,7 @@
 - [x] Change app icon from default Python icon when building executable
 
 ## Phase 3: Feature Enhancements
-- [ ] Maybe add zoom buttons, make zooming smoother
+- [x] Maybe add zoom buttons, make zooming smoother
 - [ ] Good to have panning as well and add reset of panning, reference https://github.com/marcel-goldschen-ohm/PyQtImageViewer
 - [ ] Maybe improve grayscale? https://tannerhelland.com/2011/10/01/grayscale-image-algorithm-vb6.html
 

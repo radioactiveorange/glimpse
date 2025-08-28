@@ -47,6 +47,7 @@ class RandomImageViewer(QMainWindow):
         self.flipped_h = False
         self.flipped_v = False
         self._timer_paused = False
+        self._cached_pixmap = None  # Cache processed image for smooth zooming
         
         # Initialize timer
         self.timer = QTimer(self)
@@ -100,7 +101,7 @@ class RandomImageViewer(QMainWindow):
         self.progress_bar = MinimalProgressBar(self.image_label)
         self.progress_bar.hide()
         
-        # Button overlay at bottom middle
+        # Button overlay at bottom middle - always visible when image is loaded
         self.button_overlay = ButtonOverlay(self.image_label)
         self.button_overlay.hide()
         
@@ -109,6 +110,8 @@ class RandomImageViewer(QMainWindow):
         self.button_overlay.pause_clicked.connect(self.toggle_pause)
         self.button_overlay.stop_clicked.connect(self.stop_timer)
         self.button_overlay.next_clicked.connect(self.show_next_or_random_image)
+        self.button_overlay.zoom_in_clicked.connect(self.zoom_in)
+        self.button_overlay.zoom_out_clicked.connect(self.zoom_out)
         
         self.image_label.resizeEvent = self.overlay_resize_event(self.image_label.resizeEvent)
 
@@ -263,28 +266,14 @@ class RandomImageViewer(QMainWindow):
 
     def display_image(self, img_path):
         """Display an image with current transformations and settings."""
-        pixmap = QPixmap(img_path)
-        if pixmap.isNull():
-            self.image_label.setText("Cannot load image.")
-            return
+        # Load and process the image (this caches the result)
+        self._load_and_process_image(img_path)
         
-        # Apply transformations
-        image = pixmap.toImage()
-        if self.settings.value("grayscale_enabled", False, type=bool):
-            image = image.convertToFormat(QImage.Format_Grayscale8)
-        if self.flipped_h:
-            transform = QTransform().scale(-1, 1)
-            image = image.transformed(transform)
-        if self.flipped_v:
-            transform = QTransform().scale(1, -1)
-            image = image.transformed(transform)
+        # Apply zoom to the cached image
+        self._update_zoom_display()
         
-        pixmap = QPixmap.fromImage(image)
-        size = self.image_label.size() * self.zoom_factor
-        scaled = pixmap.scaled(size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.image_label.setPixmap(scaled)
-        self.image_label.setToolTip("")
-        self.current_image = img_path
+        # Show button overlay when image is loaded
+        self.button_overlay.show()
         
         # Set background according to settings
         mode = self.settings.value("bg_mode", "Black")
@@ -303,10 +292,47 @@ class RandomImageViewer(QMainWindow):
             info = os.path.basename(img_path)
         self._update_title(img_path, info)
 
+    def _load_and_process_image(self, img_path):
+        """Load image from disk and apply transformations, caching the result."""
+        pixmap = QPixmap(img_path)
+        if pixmap.isNull():
+            self.image_label.setText("Cannot load image.")
+            self._cached_pixmap = None
+            return
+        
+        # Apply transformations
+        image = pixmap.toImage()
+        if self.settings.value("grayscale_enabled", False, type=bool):
+            image = image.convertToFormat(QImage.Format_Grayscale8)
+        if self.flipped_h:
+            transform = QTransform().scale(-1, 1)
+            image = image.transformed(transform)
+        if self.flipped_v:
+            transform = QTransform().scale(1, -1)
+            image = image.transformed(transform)
+        
+        # Cache the processed pixmap
+        self._cached_pixmap = QPixmap.fromImage(image)
+        self.current_image = img_path
+        
+    def _update_zoom_display(self):
+        """Update the display with current zoom level using cached pixmap."""
+        if not self._cached_pixmap:
+            return
+            
+        # Calculate target size based on zoom factor
+        base_size = self.image_label.size()
+        target_size = base_size * self.zoom_factor
+        
+        # Scale the cached pixmap (this is much faster than reprocessing)
+        scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.image_label.setPixmap(scaled)
+        self.image_label.setToolTip("")
+
     def resizeEvent(self, event):
         """Handle window resize to redisplay current image."""
-        if self.current_image:
-            self.display_image(self.current_image)
+        if self._cached_pixmap:
+            self._update_zoom_display()
         super().resizeEvent(event)
 
     def add_to_history(self, img_path):
@@ -381,12 +407,16 @@ class RandomImageViewer(QMainWindow):
     def flip_horizontal(self):
         """Flip the current image horizontally."""
         self.flipped_h = not self.flipped_h
-        self.display_image(self.current_image) if self.current_image else None
+        if self.current_image:
+            self._load_and_process_image(self.current_image)  # Reprocess with flip
+            self._update_zoom_display()
 
     def flip_vertical(self):
         """Flip the current image vertically."""
         self.flipped_v = not self.flipped_v
-        self.display_image(self.current_image) if self.current_image else None
+        if self.current_image:
+            self._load_and_process_image(self.current_image)  # Reprocess with flip
+            self._update_zoom_display()
 
     def overlay_resize_event(self, original_resize_event):
         """Create a custom resize event handler for overlay positioning."""
@@ -569,17 +599,14 @@ class RandomImageViewer(QMainWindow):
     def zoom_in(self):
         """Zoom in on the current image."""
         self.zoom_factor = min(self.zoom_factor * 1.15, 8.0)
-        if self.current_image:
-            self.display_image(self.current_image)
+        self._update_zoom_display()
 
     def zoom_out(self):
         """Zoom out on the current image."""
         self.zoom_factor = max(self.zoom_factor / 1.15, 0.1)
-        if self.current_image:
-            self.display_image(self.current_image)
+        self._update_zoom_display()
 
     def reset_zoom(self):
         """Reset zoom to 100%."""
         self.zoom_factor = 1.0
-        if self.current_image:
-            self.display_image(self.current_image)
+        self._update_zoom_display()

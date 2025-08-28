@@ -168,11 +168,13 @@ class ButtonOverlay(QWidget):
     pause_clicked = Signal() 
     stop_clicked = Signal()
     next_clicked = Signal()
+    zoom_in_clicked = Signal()
+    zoom_out_clicked = Signal()
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground)
-        self.setFixedSize(200, 50)
+        self.setFixedSize(280, 50)  # Wider to accommodate zoom buttons
         
         # Initially semi-transparent
         self.base_opacity = 0.3
@@ -213,24 +215,46 @@ class ButtonOverlay(QWidget):
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
         
-        # Create buttons with simple text icons for now
-        self.prev_btn = QPushButton("◀")
-        self.pause_btn = QPushButton("⏸")
-        self.stop_btn = QPushButton("⏹")
-        self.next_btn = QPushButton("▶")
+        # Import the icon function
+        from ..core.image_utils import create_professional_icon
+        
+        # Create buttons with professional geometric icons
+        self.prev_btn = QPushButton()
+        self.prev_btn.setIcon(create_professional_icon("previous", 20))
+        
+        self.pause_btn = QPushButton()
+        self.pause_btn.setIcon(create_professional_icon("pause", 20))
+        
+        self.stop_btn = QPushButton()
+        self.stop_btn.setIcon(create_professional_icon("stop", 20))
+        
+        self.next_btn = QPushButton()
+        self.next_btn.setIcon(create_professional_icon("next", 20))
+        
+        self.zoom_out_btn = QPushButton()
+        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", 20))
+        
+        self.zoom_in_btn = QPushButton()
+        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", 20))
         
         # Connect signals
         self.prev_btn.clicked.connect(self.previous_clicked.emit)
         self.pause_btn.clicked.connect(self.pause_clicked.emit)
         self.stop_btn.clicked.connect(self.stop_clicked.emit)
         self.next_btn.clicked.connect(self.next_clicked.emit)
+        self.zoom_out_btn.clicked.connect(self.zoom_out_clicked.emit)
+        self.zoom_in_btn.clicked.connect(self.zoom_in_clicked.emit)
         
-        # Add buttons to layout
+        # Add buttons to layout (zoom buttons on the sides)
+        layout.addWidget(self.zoom_out_btn)
         layout.addWidget(self.prev_btn)
         layout.addWidget(self.pause_btn)
         layout.addWidget(self.stop_btn)
         layout.addWidget(self.next_btn)
+        layout.addWidget(self.zoom_in_btn)
     
     def set_pause_state(self, is_paused):
         """Update pause button based on timer state."""
-        self.pause_btn.setText("▶" if is_paused else "⏸")
+        from ..core.image_utils import create_professional_icon
+        icon_type = "play" if is_paused else "pause"
+        self.pause_btn.setIcon(create_professional_icon(icon_type, 20))
