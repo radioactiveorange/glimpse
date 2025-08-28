@@ -97,3 +97,6 @@ uv.lock
 *.bak
 *.swp
 *.swo
+
+CLAUDE.md
+.claude

@@ -7,12 +7,13 @@ import subprocess
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QWidget,
     QListWidget, QListWidgetItem, QSplitter, QSizePolicy,
-    QMenu, QInputDialog
+    QMenu, QInputDialog, QDialog
 )
 from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
 from PySide6.QtCore import Qt, QTimer, QSize, QSettings
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
+from .startup_dialog import StartupDialog
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
 
@@ -163,7 +164,7 @@ class GlimpseViewer(QMainWindow):
         else:
             self.timer.start()
         
-        self.button_overlay.set_pause_state(self._timer_paused)
+        self.button_overlay.set_pause_state(self._timer_paused, self._auto_advance_active)
     
     def start_timer(self):
         """Start/enable the auto-advance timer."""
@@ -171,7 +172,7 @@ class GlimpseViewer(QMainWindow):
         self._timer_paused = False
         self.settings.setValue("auto_advance_enabled", True)
         self._reset_timer()
-        self.button_overlay.set_pause_state(False)
+        self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def stop_timer(self):
         """Stop and disable the auto-advance timer completely."""
@@ -179,7 +180,7 @@ class GlimpseViewer(QMainWindow):
         self._timer_paused = False
         self.settings.setValue("auto_advance_enabled", False)
         self._reset_timer()
-        self.button_overlay.set_pause_state(False)
+        self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def show_previous_image(self):
         """Show the previous image in history."""
@@ -226,6 +227,31 @@ class GlimpseViewer(QMainWindow):
             if self.images:
                 self.show_random_image()
 
+    def show_welcome_dialog(self):
+        """Show the welcome dialog to switch collection or folder."""
+        startup = StartupDialog(self)
+        
+        def on_collection_selected(data):
+            if not data or len(data) != 3:
+                return
+            collection, timer_enabled, timer_interval = data
+            self.load_collection(collection, timer_enabled, timer_interval)
+            if self.images:
+                self.show_random_image()
+        
+        def on_folder_selected(data):
+            if not data or len(data) != 3:
+                return
+            folder, timer_enabled, timer_interval = data
+            self.load_folder(folder, timer_enabled, timer_interval)
+            if self.images:
+                self.show_random_image()
+        
+        startup.collection_selected.connect(on_collection_selected)
+        startup.folder_selected.connect(on_folder_selected)
+        
+        startup.exec()
+
     def _update_title(self, img_path=None, info=None):
         """Update the window title with current image info."""
         # Use collection title if we have one
@@ -269,6 +295,13 @@ class GlimpseViewer(QMainWindow):
             self.history.clear()
             self.history_list.clear()
             available = self.images[:]
+        
+        # If timer is active, try to avoid very large files that might cause issues
+        if self._auto_advance_active:
+            manageable_images = [img for img in available if not self._is_image_too_large(img)]
+            if manageable_images:
+                available = manageable_images
+        
         img_path = random.choice(available)
         self.display_image(img_path)
         self.add_to_history(img_path)
@@ -301,18 +334,51 @@ class GlimpseViewer(QMainWindow):
         # Update title with just filename
         self._update_title(img_path)
 
+    def _is_image_too_large(self, img_path):
+        """Check if an image file is likely too large for Qt to handle."""
+        try:
+            import os
+            file_size_mb = os.path.getsize(img_path) / (1024 * 1024)
+            # Conservative estimate: files >100MB are likely to cause issues
+            return file_size_mb > 100
+        except:
+            return False
+    
     def _load_and_process_image(self, img_path):
         """Load image from disk and apply transformations, caching the result."""
-        pixmap = QPixmap(img_path)
-        if pixmap.isNull():
-            self.image_label.setText("Cannot load image.")
+        try:
+            pixmap = QPixmap(img_path)
+            if pixmap.isNull():
+                # Check if this might be due to size limit
+                import os
+                from PySide6.QtGui import QImageReader
+                file_size_mb = os.path.getsize(img_path) / (1024 * 1024)
+                
+                # Try to get image dimensions to calculate uncompressed size
+                try:
+                    reader = QImageReader(img_path)
+                    size = reader.size()
+                    if size.isValid():
+                        width, height = size.width(), size.height()
+                        uncompressed_mb = (width * height * 4) / (1024 * 1024)  # 4 bytes per pixel (RGBA)
+                        self.image_label.setText(f"Image too large to display.\n\nFile: {os.path.basename(img_path)}\nFile size: {file_size_mb:.1f}MB\nDimensions: {width}x{height}\nUncompressed: {uncompressed_mb:.1f}MB\n\nQt limit: 256MB uncompressed.\nConsider resizing the image.")
+                    else:
+                        self.image_label.setText(f"Cannot load image.\n\nFile: {os.path.basename(img_path)}\nSize: {file_size_mb:.1f}MB\n\nThis may exceed Qt's 256MB memory limit.")
+                except Exception:
+                    # Fallback if QImageReader fails
+                    self.image_label.setText(f"Cannot load image.\n\nFile: {os.path.basename(img_path)}\nSize: {file_size_mb:.1f}MB\n\nThis may exceed Qt's 256MB memory limit.")
+                
+                self._cached_pixmap = None
+                return
+        except Exception as e:
+            self.image_label.setText(f"Error loading image:\n{str(e)}")
             self._cached_pixmap = None
             return
         
         # Apply transformations
         image = pixmap.toImage()
         if self.settings.value("grayscale_enabled", False, type=bool):
-            image = image.convertToFormat(QImage.Format_Grayscale8)
+            image = self._apply_improved_grayscale(image)
         if self.flipped_h:
             transform = QTransform().scale(-1, 1)
             image = image.transformed(transform)
@@ -327,15 +393,83 @@ class GlimpseViewer(QMainWindow):
         # Reset pan position when loading new image
         self.pan_offset_x = 0
         self.pan_offset_y = 0
+    
+    def _apply_improved_grayscale(self, image):
+        """Apply improved grayscale conversion using human eye correction (ITU-R BT.709)."""
+        # Convert to RGB32 format if needed
+        if image.format() != QImage.Format_RGB32:
+            image = image.convertToFormat(QImage.Format_RGB32)
+        
+        width = image.width()
+        height = image.height()
+        total_pixels = width * height
+        
+        # For large images, show a wait cursor to indicate processing
+        show_wait_cursor = total_pixels > 2000000  # 2 megapixels
+        if show_wait_cursor:
+            self.setCursor(Qt.WaitCursor)
+        
+        try:
+            # For very large images (>5MP), use Qt's built-in fast conversion 
+            # and accept slightly less accurate color reproduction
+            if total_pixels > 5000000:  # 5 megapixels
+                return image.convertToFormat(QImage.Format_Grayscale8).convertToFormat(QImage.Format_RGB32)
+            
+            # Create grayscale copy
+            grayscale_image = image.copy()
+            
+            # Process line by line for better performance
+            for y in range(height):
+                scan_line = grayscale_image.scanLine(y)
+                # Convert to memoryview for faster access
+                pixels = memoryview(scan_line).cast('I')  # 32-bit unsigned integers
+                
+                for x in range(width):
+                    pixel = pixels[x]
+                    # Extract RGB components (assuming little-endian BGRA format)
+                    blue = pixel & 0xFF
+                    green = (pixel >> 8) & 0xFF
+                    red = (pixel >> 16) & 0xFF
+                    alpha = (pixel >> 24) & 0xFF
+                    
+                    # Apply ITU-R BT.709 coefficients for perceptual luminance
+                    gray_value = int(0.2126 * red + 0.7152 * green + 0.0722 * blue)
+                    gray_value = min(255, max(0, gray_value))
+                    
+                    # Set pixel to grayscale (BGRA format)
+                    pixels[x] = (alpha << 24) | (gray_value << 16) | (gray_value << 8) | gray_value
+            
+            return grayscale_image
+        finally:
+            # Always restore cursor
+            if show_wait_cursor:
+                self.setCursor(Qt.ArrowCursor)
         
     def _update_zoom_display(self):
         """Update the display with current zoom level and pan offset using cached pixmap."""
         if not self._cached_pixmap:
             return
             
-        # Calculate target size based on zoom factor
-        base_size = self.image_label.size()
-        target_size = base_size * self.zoom_factor
+        # For small images, scale based on natural size; for large images, fit to container
+        original_size = self._cached_pixmap.size()
+        container_size = self.image_label.size()
+        
+        # Check if image is small (smaller than container in both dimensions)
+        is_small_image = (original_size.width() <= container_size.width() and 
+                         original_size.height() <= container_size.height())
+        
+        if is_small_image and self.zoom_factor == 1.0:
+            # For small images at 100% zoom, use original size
+            target_size = original_size
+        else:
+            # For large images or when zoomed, scale based on container size
+            if is_small_image:
+                # Scale from original size for small images
+                target_size = original_size * self.zoom_factor
+            else:
+                # Scale from fit-to-container size for large images
+                fit_size = original_size.scaled(container_size, Qt.KeepAspectRatio)
+                target_size = fit_size * self.zoom_factor
         
         # Scale the cached pixmap
         scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -429,7 +563,7 @@ class GlimpseViewer(QMainWindow):
         if self.current_image:
             self.button_overlay.show()
         # Update button overlay to reflect new state
-        self.button_overlay.set_pause_state(False)
+        self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def change_bg_mode(self, mode):
         """Change the background color mode."""
@@ -484,7 +618,7 @@ class GlimpseViewer(QMainWindow):
             self.progress_bar.show()
             if self.current_image:
                 self.button_overlay.show()
-            self.button_overlay.set_pause_state(False)
+            self.button_overlay.set_pause_state(False, self._auto_advance_active)
         else:
             self.timer.stop()
             self._timer_paused = False
@@ -493,7 +627,7 @@ class GlimpseViewer(QMainWindow):
             # Keep button overlay visible even when timer is disabled
             if self.current_image:
                 self.button_overlay.show()
-            self.button_overlay.set_pause_state(False)
+            self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def _on_timer_tick(self):
         """Handle timer tick for auto-advance."""
@@ -517,23 +651,52 @@ class GlimpseViewer(QMainWindow):
         """Show the right-click context menu."""
         menu = QMenu(self)
         
-        # --- Main actions ---
-        open_action = QAction("Open Folder", self)
-        open_action.triggered.connect(self.choose_folder)
-        menu.addAction(open_action)
-        menu.addSeparator()
-        
-        prev_action = QAction("Previous Image", self)
+        # --- Navigation Controls ---
+        prev_action = QAction("Previous", self)
         prev_action.triggered.connect(self.show_previous_image)
+        prev_action.setEnabled(self.history_index > 0)
         menu.addAction(prev_action)
         
-        next_action = QAction("Next Random Image", self)
+        next_action = QAction("Next", self)
         next_action.triggered.connect(self.show_next_or_random_image)
         menu.addAction(next_action)
         
+        random_action = QAction("Random Image", self)
+        random_action.triggered.connect(self.show_random_image)
+        menu.addAction(random_action)
+        menu.addSeparator()
+        
+        # --- Media Controls ---
+        if self._auto_advance_active:
+            if self._timer_paused:
+                play_action = QAction("Play", self)
+                play_action.triggered.connect(self.toggle_pause)
+                menu.addAction(play_action)
+            else:
+                pause_action = QAction("Pause", self)
+                pause_action.triggered.connect(self.toggle_pause)
+                menu.addAction(pause_action)
+        else:
+            start_action = QAction("Start Timer", self)
+            start_action.triggered.connect(self.start_timer)
+            menu.addAction(start_action)
+        
+        stop_action = QAction("Stop Timer", self)
+        stop_action.triggered.connect(self.stop_timer)
+        stop_action.setEnabled(self._auto_advance_active)
+        menu.addAction(stop_action)
+        menu.addSeparator()
+        
+        # --- File Actions ---
         open_explorer_action = QAction("Open in Explorer", self)
         open_explorer_action.triggered.connect(self.open_current_in_explorer)
+        open_explorer_action.setEnabled(self.current_image is not None)
         menu.addAction(open_explorer_action)
+        
+        # --- Source Selection ---
+        welcome_action = QAction("Switch Collection/Folder...", self)
+        welcome_action.triggered.connect(self.show_welcome_dialog)
+        menu.addAction(welcome_action)
         menu.addSeparator()
         
         # --- Zoom actions ---
@@ -558,14 +721,7 @@ class GlimpseViewer(QMainWindow):
         menu.addAction(reset_pan_action)
         menu.addSeparator()
         
-        # --- Timer ---
-        timer_action = QAction("Enable Timer", self)
-        timer_action.setCheckable(True)
-        timer_action.setChecked(self._auto_advance_active)
-        timer_action.toggled.connect(self.toggle_timer)
-        menu.addAction(timer_action)
-        
-        # Timer interval submenu
+        # --- Timer Settings ---
         timer_menu = QMenu("Timer Interval", self)
         for label, value in [("30s", 30), ("60s", 60), ("5m", 300), ("10m", 600)]:
             act = QAction(label, self)

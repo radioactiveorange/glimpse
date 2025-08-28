@@ -286,9 +286,11 @@ class ButtonOverlay(QWidget):
         layout.addWidget(self.next_btn)
         layout.addWidget(self.zoom_in_btn)
     
-    def set_pause_state(self, is_paused):
+    def set_pause_state(self, is_paused, timer_active=True):
         """Update pause button based on timer state."""
         from ..core.image_utils import create_professional_icon
-        icon_type = "play" if is_paused else "pause"
+        # If timer is not active, show play button regardless of pause state
+        # If timer is active, show play when paused, pause when running
+        icon_type = "play" if (not timer_active or is_paused) else "pause"
         icon_size = 18  # Match the consistent icon size
         self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size))

@@ -34,27 +34,35 @@ class StartupDialog(QDialog):
     def init_ui(self):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+        
+        # Compact header section
+        header_widget = QWidget()
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setSpacing(4)
+        header_layout.setContentsMargins(0, 0, 0, 0)
         
         # Title
         title = QLabel("Glimpse")
         title.setAlignment(Qt.AlignCenter)
         title_font = QFont()
-        title_font.setPointSize(18)
+        title_font.setPointSize(16)
         title_font.setBold(True)
         title.setFont(title_font)
-        layout.addWidget(title)
+        header_layout.addWidget(title)
         
         # Subtitle
         subtitle = QLabel("Get random glimpses of your image collections")
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("color: #666; margin-bottom: 20px;")
-        layout.addWidget(subtitle)
+        subtitle.setStyleSheet("color: #666; font-size: 11px;")
+        header_layout.addWidget(subtitle)
         
-        # Main content area
+        layout.addWidget(header_widget)
+        
+        # Main content area - give it more space
         main_splitter = QSplitter(Qt.Horizontal)
-        layout.addWidget(main_splitter)
+        layout.addWidget(main_splitter, 1)  # Stretch factor of 1
         
         # Left side - Collections
         collections_widget = QWidget()
@@ -67,7 +75,7 @@ class StartupDialog(QDialog):
         
         # Collections list
         self.collections_list = QListWidget()
-        self.collections_list.setMinimumHeight(300)
+        self.collections_list.setMinimumHeight(200)
         self.collections_list.itemDoubleClicked.connect(self.on_collection_double_clicked)
         self.collections_list.itemClicked.connect(self.on_collection_selected)
         collections_group_layout.addWidget(self.collections_list)
@@ -115,39 +123,37 @@ class StartupDialog(QDialog):
         
         right_layout.addWidget(quick_group)
         
-        # Collection details
+        # Collection details - expand to fill available space
         details_group = QGroupBox("Collection Details")
         details_layout = QVBoxLayout(details_group)
         
         self.details_text = QTextEdit()
         self.details_text.setReadOnly(True)
-        self.details_text.setMaximumHeight(150)
+        self.details_text.setMinimumHeight(120)
         self.details_text.setPlaceholderText("Select a collection to view details")
         details_layout.addWidget(self.details_text)
         
-        right_layout.addWidget(details_group)
-        
-        # Add stretch to right side
-        right_layout.addStretch()
+        right_layout.addWidget(details_group, 1)  # Give it stretch factor
         
         # Set splitter proportions
         main_splitter.addWidget(collections_widget)
         main_splitter.addWidget(right_widget)
         main_splitter.setSizes([400, 400])
         
-        # Bottom buttons
+        # Bottom buttons with less spacing
         bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 8, 0, 0)
         bottom_layout.addStretch()
         
         self.open_collection_btn = QPushButton("Open Collection")
         self.open_collection_btn.setEnabled(False)
         self.open_collection_btn.clicked.connect(self.open_selected_collection)
-        self.open_collection_btn.setMinimumHeight(35)
+        self.open_collection_btn.setMinimumHeight(32)
         bottom_layout.addWidget(self.open_collection_btn)
         
         cancel_btn = QPushButton("Cancel")
         cancel_btn.clicked.connect(self.reject)
-        cancel_btn.setMinimumHeight(35)
+        cancel_btn.setMinimumHeight(32)
         bottom_layout.addWidget(cancel_btn)
         
         layout.addLayout(bottom_layout)
@@ -324,6 +330,11 @@ class StartupDialog(QDialog):
         if reply == QMessageBox.Yes:
             if self.collection_manager.delete_collection(collection.name):
                 self.refresh_collections()
+                # Clear details panel and disable buttons
+                self.details_text.clear()
+                self.open_collection_btn.setEnabled(False)
+                self.edit_collection_btn.setEnabled(False)
+                self.delete_collection_btn.setEnabled(False)
             else:
                 QMessageBox.critical(self, "Error", "Failed to delete collection.")
     
