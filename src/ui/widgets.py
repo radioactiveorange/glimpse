@@ -65,17 +65,48 @@ class ClickableLabel(QLabel):
     back = Signal()
     forward = Signal()
     wheel_zoom = Signal(float)  # Signal for zooming, emits delta
+    pan_start = Signal(object)  # Signal for starting pan (QPoint)
+    pan_move = Signal(object)   # Signal for pan movement (QPoint)
+    pan_end = Signal()          # Signal for ending pan
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._is_panning = False
+        self._last_pan_point = None
+        # Enable mouse tracking to receive move events during drag
+        self.setMouseTracking(True)
     
     def mousePressEvent(self, event):
         """Handle mouse press events."""
         if event.button() == Qt.LeftButton:
-            self.clicked.emit()
+            # Use left button for panning
+            self._is_panning = True
+            self._last_pan_point = event.pos()
+            self.setCursor(Qt.ClosedHandCursor)
+            self.pan_start.emit(event.pos())
         elif self.mouse_nav:
             if event.button() == Qt.BackButton:
                 self.back.emit()
             elif event.button() == Qt.ForwardButton:
                 self.forward.emit()
         super().mousePressEvent(event)
+    
+    def mouseMoveEvent(self, event):
+        """Handle mouse move events for panning."""
+        if self._is_panning and self._last_pan_point:
+            delta = event.pos() - self._last_pan_point
+            self.pan_move.emit(delta)
+            self._last_pan_point = event.pos()
+        super().mouseMoveEvent(event)
+    
+    def mouseReleaseEvent(self, event):
+        """Handle mouse release events."""
+        if event.button() == Qt.LeftButton and self._is_panning:
+            self._is_panning = False
+            self._last_pan_point = None
+            self.setCursor(Qt.ArrowCursor)
+            self.pan_end.emit()
+        super().mouseReleaseEvent(event)
     
     def wheelEvent(self, event):
         """Handle mouse wheel events for zooming."""

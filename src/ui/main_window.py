@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QListWidget, QListWidgetItem, QSplitter, QSizePolicy,
     QMenu, QInputDialog
 )
-from PySide6.QtGui import QPixmap, QImage, QTransform, QAction
+from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
 from PySide6.QtCore import Qt, QTimer, QSize, QSettings
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
@@ -49,6 +49,12 @@ class RandomImageViewer(QMainWindow):
         self._timer_paused = False
         self._cached_pixmap = None  # Cache processed image for smooth zooming
         
+        # Panning state
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        self._is_panning = False
+        self._last_pan_point = None
+        
         # Initialize timer
         self.timer = QTimer(self)
         self.timer.setInterval(1000)
@@ -79,6 +85,9 @@ class RandomImageViewer(QMainWindow):
         self.image_label.back.connect(self.show_previous_image)
         self.image_label.forward.connect(self.show_next_image)
         self.image_label.wheel_zoom.connect(self.handle_wheel_zoom)
+        self.image_label.pan_start.connect(self.start_panning)
+        self.image_label.pan_move.connect(self.handle_panning)
+        self.image_label.pan_end.connect(self.end_panning)
         
         # Set up context menu
         self.image_label.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -315,8 +324,12 @@ class RandomImageViewer(QMainWindow):
         self._cached_pixmap = QPixmap.fromImage(image)
         self.current_image = img_path
         
+        # Reset pan position when loading new image
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        
     def _update_zoom_display(self):
-        """Update the display with current zoom level using cached pixmap."""
+        """Update the display with current zoom level and pan offset using cached pixmap."""
         if not self._cached_pixmap:
             return
             
@@ -324,9 +337,32 @@ class RandomImageViewer(QMainWindow):
         base_size = self.image_label.size()
         target_size = base_size * self.zoom_factor
         
-        # Scale the cached pixmap (this is much faster than reprocessing)
+        # Scale the cached pixmap
         scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.image_label.setPixmap(scaled)
+        
+        # Apply panning - always use canvas when there's any pan offset
+        if self.pan_offset_x != 0 or self.pan_offset_y != 0:
+            # Create a canvas the size of the label
+            canvas = QPixmap(self.image_label.size())
+            canvas.fill(Qt.black)  # Use black background instead of transparent
+            
+            # Paint the scaled image with offset
+            painter = QPainter(canvas)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform)
+            
+            # Calculate position to center the image with pan offset
+            x = (self.image_label.width() - scaled.width()) // 2 + self.pan_offset_x
+            y = (self.image_label.height() - scaled.height()) // 2 + self.pan_offset_y
+            print(f"Drawing image at: ({x}, {y})")
+            
+            # Draw the scaled image at offset position
+            painter.drawPixmap(x, y, scaled)
+            painter.end()
+            
+            self.image_label.setPixmap(canvas)
+        else:
+            self.image_label.setPixmap(scaled)
+            
         self.image_label.setToolTip("")
 
     def resizeEvent(self, event):
@@ -506,6 +542,11 @@ class RandomImageViewer(QMainWindow):
         reset_zoom_action.setShortcut("Ctrl+0")
         reset_zoom_action.triggered.connect(self.reset_zoom)
         menu.addAction(reset_zoom_action)
+        
+        reset_pan_action = QAction("Reset Pan Position", self)
+        reset_pan_action.triggered.connect(self.reset_pan)
+        reset_pan_action.setEnabled(self.zoom_factor > 1.0)  # Only enable when zoomed
+        menu.addAction(reset_pan_action)
         menu.addSeparator()
         
         # --- Timer ---
@@ -609,4 +650,28 @@ class RandomImageViewer(QMainWindow):
     def reset_zoom(self):
         """Reset zoom to 100%."""
         self.zoom_factor = 1.0
+        self.pan_offset_x = 0  # Reset pan when zooming to 100%
+        self.pan_offset_y = 0
+        self._update_zoom_display()
+
+    def start_panning(self, pos):
+        """Start panning operation."""
+        pass  # Just for signal connection, actual panning handled in handle_panning
+
+    def handle_panning(self, delta):
+        """Handle panning movement."""
+        # Only allow panning when zoomed in
+        if self.zoom_factor > 1.0:
+            self.pan_offset_x += delta.x()
+            self.pan_offset_y += delta.y()
+        self._update_zoom_display()
+
+    def end_panning(self):
+        """End panning operation."""
+        pass  # Just for signal connection
+
+    def reset_pan(self):
+        """Reset pan position to center."""
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
         self._update_zoom_display()

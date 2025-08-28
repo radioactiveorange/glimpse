@@ -158,6 +158,23 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
         minus_pen = QPen(QColor(color), pen_width + 1, Qt.SolidLine, Qt.RoundCap)
         painter.setPen(minus_pen)
         painter.drawLine(center - minus_size, center, center + minus_size, center)
+        
+    elif icon_type == "center":
+        # Crosshair for reset/center
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Draw crosshair
+        cross_size = (size - 2 * margin) // 3
+        painter.drawLine(center - cross_size, center, center + cross_size, center)
+        painter.drawLine(center, center - cross_size, center, center + cross_size)
+        
+        # Small circle in center
+        center_radius = pen_width
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(center - center_radius, center - center_radius, 
+                          center_radius * 2, center_radius * 2)
     
     painter.end()
     return QIcon(pixmap)

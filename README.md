@@ -30,7 +30,7 @@ A simple, modern, **cross-platform** desktop app to view random images from any 
 
 1. **Clone this repo:**
    ```sh
-   git clone https://github.com/YOUR_USERNAME/random-image-viewer.git
+   git clone https://github.com/radioactiveorange/random-image-viewer.git
    cd random-image-viewer
    ```
 
