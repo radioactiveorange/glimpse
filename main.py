@@ -1,18 +1,29 @@
 """Glimpse - Main application entry point."""
 
 import sys
+import os
 from PySide6.QtWidgets import QApplication, QDialog
 
 from src.ui.styles import DARK_STYLESHEET
 from src.ui.main_window import GlimpseViewer
 from src.ui.startup_dialog import StartupDialog
-from src.core.image_utils import emoji_icon
+from PySide6.QtGui import QIcon
 
 def main():
     """Main application entry point with startup dialog."""
     app = QApplication(sys.argv)
     app.setStyleSheet(DARK_STYLESHEET)
-    app.setWindowIcon(emoji_icon("🎲", 128))
+    # Get the directory where the script/executable is located
+    if getattr(sys, 'frozen', False):
+        # Running as compiled executable
+        app_dir = os.path.dirname(sys.executable)
+    else:
+        # Running as script
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    icon_path = os.path.join(app_dir, "app_icon.png")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
     
     # Show startup dialog
     startup = StartupDialog()

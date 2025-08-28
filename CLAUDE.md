@@ -18,7 +18,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building Executable
 - Install PyInstaller: `uv pip install pyinstaller`
-- Build standalone executable with custom icon: `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png main.py`
+- Build standalone executable with custom icon: `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png --name=glimpse main.py`
 - Build without icon (fallback): `pyinstaller --noconfirm --onefile --windowed main.py`
 - Output binary will be in the `dist/` folder
 - **Note**: The custom app icon (`app_icon.png`) replaces the default Python icon
