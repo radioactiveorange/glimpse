@@ -24,7 +24,7 @@ class StartupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.collection_manager = CollectionManager()
-        self.setWindowTitle("Random Image Viewer - Welcome")
+        self.setWindowTitle("Glimpse - Welcome")
         self.setModal(True)
         self.resize(800, 600)
         
@@ -38,7 +38,7 @@ class StartupDialog(QDialog):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # Title
-        title = QLabel("Random Image Viewer")
+        title = QLabel("Glimpse")
         title.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(18)
@@ -47,7 +47,7 @@ class StartupDialog(QDialog):
         layout.addWidget(title)
         
         # Subtitle
-        subtitle = QLabel("Choose how to start viewing images")
+        subtitle = QLabel("Get random glimpses of your image collections")
         subtitle.setAlignment(Qt.AlignCenter)
         subtitle.setStyleSheet("color: #666; margin-bottom: 20px;")
         layout.addWidget(subtitle)

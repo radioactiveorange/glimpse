@@ -21,6 +21,8 @@
 - [x] Add collections feature where a collection is basically a list of paths where to load images
 - [x] Upon loading the app, users have the option to quick shuffle a folder or to create/load/delete collection, for reference use ShuffleBird https://github.com/PuffedUpBirdie/ShuffleBird
 
+## Refactor
+- [ ] Context menu doesn't reflect the current collections workflow and the play/pause, next, previous, stop we have. 
 
 ## Bugs
 - [x] There's a bug when creating a collection. After selecting a folder, it hides the file dialog but then shows it again. 

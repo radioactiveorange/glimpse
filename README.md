@@ -1,144 +1,156 @@
-# Random Image Viewer
+# Glimpse 👁️
 
-A simple, modern, **cross-platform** desktop app to view random images from any folder (including subfolders). Great for artists, inspiration, or just browsing your photo collection!
+**Get random glimpses of your image collections**
 
----
+Glimpse is a cross-platform desktop application for artists, designers, and creatives who want to randomly view images from their collections. Perfect for reference studies, inspiration sessions, and rediscovering forgotten artwork.
 
-## Features
+## ✨ Features
 
-- 📁 **Open Any Folder:** Load images from a folder and its subfolders.
-- 🎲 **Random Image:** Instantly show a random image, avoiding repeats until all are seen.
-- ⏮️ ⏭️ **History Navigation:** Go back and forward through viewed images, with a clickable thumbnail history panel.
-- 🕒 **Auto-Advance Timer:** Automatically switch to a new random image at set intervals, with a smooth, animated circular countdown overlay.
-- 🔍 **Zoom:** Zoom in, out, or reset with mouse wheel, keyboard shortcuts, or context menu.
-- 🖱️ **Context Menu:** Right-click the image for all main actions (open folder, next/prev, zoom, timer, settings, etc.).
-- 🖼️ **Image Manipulation:**
-  - Flip image horizontally or vertically
-  - Toggle grayscale mode
-- 🎨 **Background Modes:** Choose between black, gray, or adaptive background color based on the image.
-- 🗂️ **Clickable File Path:** Click the image filename to open its location in your system's file explorer (Windows, macOS, Linux).
-- 💾 **Persistent Settings:** Remembers your last folder, timer interval, history panel state, background mode, and more between sessions.
-- 🖼️ **Thumbnail History Panel:** View and click through previously seen images with thumbnails.
-- ⏱️ **Animated Timer Overlay:** Smooth, circular countdown timer overlay for auto-advance mode.
-- ⌨️ **Keyboard Shortcuts:** All main actions accessible via keyboard (see below).
-- 🌑 **Dark Theme:** Clean, minimal, modern dark UI.
-- 🖥️ **Cross-platform:** Works on Windows, macOS, and Linux.
+### 🎲 **Smart Random Viewing**
+- **Collections**: Organize multiple folders into themed collections (e.g., "Character References", "Environment Studies")
+- **Quick Shuffle**: Instantly start viewing images from any folder
+- **History Navigation**: Browse back and forth through previously viewed images with thumbnail panel
 
----
+### ⏰ **Flexible Timer System** 
+- **Auto-Advance**: Set custom intervals from 30 seconds to hours
+- **Pause/Resume**: Full control with intuitive media-style buttons
+- **Manual Mode**: Browse at your own pace without any timer
 
-## Installation
+### 🖼️ **Professional Image Viewing**
+- **Smart Zoom**: Smooth zooming with mouse wheel (Ctrl +/-)
+- **Pan Support**: Drag images when zoomed in, with intelligent constraints
+- **Image Transformations**: Flip horizontally/vertically, toggle grayscale
+- **Adaptive Backgrounds**: Choose black, gray, or adaptive color backgrounds
 
-1. **Clone this repo:**
-   ```sh
-   git clone https://github.com/radioactiveorange/random-image-viewer.git
-   cd random-image-viewer
-   ```
+### 🎨 **Artist-Focused Design**
+- **Minimal UI**: Clean interface that doesn't distract from your images
+- **Dark Theme**: Easy on the eyes for long viewing sessions
+- **Keyboard Shortcuts**: Arrow keys for navigation, Ctrl+0 to reset zoom
+- **Context Menu**: Right-click access to all features
 
-2. **Install [uv](https://github.com/astral-sh/uv) (if you don't have it):**
-   ```sh
-   pip install uv
-   ```
-
-3. **Install dependencies:**
-   ```sh
-   uv pip install -r pyproject.toml
-   # or just
-   uv pip install pyside6
-   ```
+### 💾 **Smart Collection Management**
+- **Multi-folder Collections**: Include images from multiple directories
+- **Persistent Storage**: Collections remembered between sessions
+- **Usage Tracking**: Recently used collections shown first
+- **Cross-platform**: Works on Windows, macOS, and Linux
 
 ---
 
-## How to Run
+## 🚀 Quick Start
 
-- **With uv:**
-  ```sh
-  uv run main.py
-  ```
-- **Or with Python:**
-  ```sh
-  python main.py
-  ```
+### Installation
 
----
+**Option 1: Run from Source**
+```bash
+# Clone the repository
+git clone https://github.com/your-username/glimpse.git
+cd glimpse
 
-## Usage
+# Install dependencies with uv (recommended)
+uv pip install pyside6
 
-1. **Open a Folder:**
-   - Right-click the image area and select "Open Folder".
-2. **Show Random Image:**
-   - Right-click and choose "Next Random Image", or press the **Right Arrow** key.
-3. **Navigate History:**
-   - Use **Left/Right Arrow** keys, or the context menu.
-   - Enable the history panel from the context menu to click through viewed images.
-4. **Auto-Advance:**
-   - Enable from the context menu ("Enable Timer").
-   - Adjust interval in the context menu.
-   - A circular timer appears as an overlay.
-5. **Zoom:**
-   - Use mouse wheel over the image, keyboard shortcuts, or context menu.
-6. **Other Actions:**
-   - Flip image, toggle grayscale, change background, and more—all from the context menu.
+# Run the application
+uv run main.py
+```
+
+**Option 2: Build Executable**
+```bash
+# Install PyInstaller
+uv pip install pyinstaller
+
+# Build standalone executable
+pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png main.py
+
+# Find your executable in the dist/ folder
+```
 
 ---
 
-## Keyboard Shortcuts & Context Menu Actions
+### First Launch
 
-- **Left Arrow:** Previous image
-- **Right Arrow:** Next image (random if at end)
-- **Ctrl + +:** Zoom in
-- **Ctrl + -:** Zoom out
-- **Ctrl + 0:** Reset zoom
-- **Context Menu (right-click):**
-  - Open Folder
-  - Previous/Next Random Image
-  - Zoom In/Out/Reset
-  - Enable Timer & set interval
-  - Show History Panel
-  - Grayscale, Flip, Background color, etc.
+1. **Create a Collection**: Click "New Collection", give it a name, and select folders containing your images
+2. **Configure Timer**: Choose your preferred auto-advance interval (or disable for manual browsing)
+3. **Start Viewing**: Click "Open Collection" and enjoy your random image glimpses!
+
+**Or use Quick Shuffle**: Select "Quick Shuffle Folder" for immediate access to any folder.
 
 ---
 
-## Screenshots
+## 🎯 Perfect For
 
-![Main Window](screenshots/main_window.png)
-*Main window with random image loaded*
-
-![History Panel](screenshots/history_panel.png)
-*History panel enabled and showing viewed images*
-
-![Pie Timer and Toolbar](screenshots/timer_toolbar.png)
-*Pie timer overlay and auto-advance controls*
+- **Digital Artists**: Reference image studies and inspiration
+- **Photographers**: Portfolio reviews and rediscovering old work  
+- **Designers**: Mood boards and creative inspiration sessions
+- **Collectors**: Enjoying large image libraries without overwhelm
+- **Students**: Art history studies and visual research
 
 ---
 
-## Compiling to a Standalone Binary
+## ⌨️ Keyboard Shortcuts
 
-You can compile this app to a standalone executable for Windows, Linux, or Mac using [PyInstaller](https://pyinstaller.org/).
+| Shortcut | Action |
+|----------|--------|
+| `←` `→` | Navigate previous/next image |
+| `Ctrl` `+` | Zoom in |
+| `Ctrl` `-` | Zoom out |
+| `Ctrl` `0` | Reset zoom to 100% |
+| `Right-click` | Open context menu |
 
-1. **Install PyInstaller:**
-   ```sh
-   uv pip install pyinstaller
-   ```
-2. **Build the Executable:**
-   ```sh
-   pyinstaller --noconfirm --onefile --windowed main.py
-   ```
-   - The binary will be in the `dist/` folder.
-   - For cross-compiling, build on the target OS or use a cross-compilation toolchain.
+## 🖱️ Mouse Controls
 
----
-
-## Requirements
-
-- Python 3.8+
-- [PySide6](https://pypi.org/project/PySide6/)
+- **Left-click + Drag**: Pan image when zoomed
+- **Mouse Wheel**: Zoom in/out
+- **Right-click**: Context menu with all options
 
 ---
 
-## License
+## 🛠️ Advanced Features
 
-MIT License.
+### Collection Management
+- **Edit Collections**: Rename collections and manage folder lists
+- **Delete Collections**: Remove collections you no longer need
+- **Smart Organization**: Collections auto-sorted by recent usage
+
+### Image Processing  
+- **Format Support**: JPG, JPEG, PNG, BMP, GIF
+- **Recursive Search**: Automatically finds images in subfolders
+- **Grayscale Mode**: Toggle black & white viewing
+- **Flip Controls**: Horizontal and vertical image flipping
+
+### Customization
+- **Background Modes**: 
+  - Black (default)
+  - Gray (neutral)
+  - Adaptive Color (matches image)
+- **Timer Intervals**: 30s, 1min, 2min, 5min, or custom
+- **UI Preferences**: Toggle history panel, adjust settings
+
+## 🏗️ Technical Details
+
+- **Framework**: PySide6 (Qt for Python)
+- **Architecture**: Modular design with separate UI, core logic, and utilities
+- **Data Storage**: JSON-based collections with cross-platform paths
+- **Settings**: Platform-appropriate user data directories
+- **Performance**: Optimized image caching and smooth animations
+
+## 🎨 Screenshots
+
+*Screenshots coming soon - the app is fully functional and ready to use!*
 
 ---
 
-**Enjoy browsing your images!**
+## 🤝 Contributing
+
+This project was built collaboratively with Claude Code. Contributions, bug reports, and feature requests are welcome!
+
+---
+
+## 📝 License
+
+This project is open source. License details to be added.
+
+---
+
+**Glimpse** - *Random glimpses of your visual world* ✨
+
+*Built for artists, by artists (and AI) 🎨🤖*

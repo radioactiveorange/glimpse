@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a cross-platform desktop application for viewing random images from folders, built with Python and PySide6 (Qt). The application uses a modular structure with a clean separation between UI components, core functionality, and the main entry point. It provides features like random image viewing, history navigation, auto-advance timer, zoom controls, and various image manipulation options.
+**Glimpse** is a cross-platform desktop application for viewing random images from collections, built with Python and PySide6 (Qt). The application features a sophisticated startup system for collection management, professional image viewing capabilities, and an artist-focused workflow. It uses a modular architecture with clean separation between UI components, core functionality, and data management.
 
 ## Development Commands
 
@@ -28,22 +28,27 @@ This is a cross-platform desktop application for viewing random images from fold
 ### Modular Structure
 The application is organized into a clean modular structure:
 
-- **`main.py`**: Application entry point and initialization
+- **`main.py`**: Application entry point with startup dialog integration
 - **`src/ui/`**: User interface components
-  - `main_window.py`: Main application window with image display and controls
+  - `main_window.py`: Main application window (GlimpseViewer class)
+  - `startup_dialog.py`: Professional startup screen for collection management
+  - `timer_dialog.py`: Timer configuration dialog for collections/folders
   - `widgets.py`: Custom widgets (ClickableLabel, MinimalProgressBar, ButtonOverlay)
   - `styles.py`: Dark theme stylesheet constants
 - **`src/core/`**: Core functionality
-  - `image_utils.py`: Image processing utilities and helper functions
+  - `image_utils.py`: Image processing utilities and professional icon creation
+  - `collections.py`: Collection management system with JSON storage
 - **`app_icon.png`**: Custom application icon for built executables
 
 ### Key Features Implementation
-- **Image Display**: QLabel with pixmap scaling and transformation support
+- **Startup System**: Professional dialog with collection management and timer configuration
+- **Collection Management**: JSON-based storage with CollectionManager class
+- **Image Display**: Advanced QLabel with pixmap scaling, transformation, and panning support
 - **History System**: List-based navigation with thumbnail panel (QListWidget)
-- **Timer System**: QTimer-based auto-advance with minimal progress bar and button overlay controls
-- **Settings Persistence**: QSettings for remembering user preferences
-- **Context Menu**: Right-click menu for all major actions
-- **Keyboard Shortcuts**: Arrow keys for navigation, Ctrl+/- for zoom
+- **Timer System**: QTimer-based auto-advance with media-style controls (play/pause/stop)
+- **Professional UI**: Button overlays with consistent geometric icons
+- **Settings Persistence**: QSettings with cross-platform data directory support
+- **Signal Architecture**: Clean signal/slot communication between startup and main window
 
 ### State Management
 - Image transformations (flip, grayscale) applied via QTransform
@@ -66,11 +71,26 @@ The application uses a comprehensive dark theme stylesheet (`DARK_STYLESHEET`) t
 - Context menu actions connected via Qt signals/slots
 - Timer events handled through QTimer callbacks
 
-## Future Development Notes
+## Development Guidelines
 
-Based on TODO.md, remaining planned improvements include:
-- Collections feature for managing multiple image sources
-- Enhanced zoom and panning capabilities
-- Further UI refinements
+### Code Patterns
+- **Qt Signal Architecture**: Use object-typed signals for complex data (tuples, custom objects)
+- **Error Handling**: Implement graceful fallbacks for cancelled dialogs and invalid data
+- **Icon System**: All icons created via `create_professional_icon()` with consistent sizing
+- **Settings Management**: Use QSettings with proper cross-platform paths
+
+### Current Status (Phase 4 Complete)
+All major features have been implemented:
+- ✅ **Collections System**: Multi-folder collections with full CRUD operations
+- ✅ **Startup Workflow**: Professional ShuffleBird-inspired interface
+- ✅ **Timer Configuration**: Flexible timer settings for any viewing session
+- ✅ **Professional UI**: Media-style controls with consistent icon design
+- ✅ **Smart Panning**: Intelligent constraints based on image and zoom state
+
+### Maintenance Notes
+- **Timer Consistency**: Play/pause/stop buttons synchronized with context menu
+- **Signal Types**: Collection and folder signals emit tuples: (data, timer_enabled, timer_interval)
+- **Panning Logic**: Allows repositioning when image is off-center, regardless of zoom
+- **Collections Storage**: JSON files in platform-appropriate user data directories
 
 When making changes, preserve the existing dark theme aesthetic and ensure cross-platform compatibility (Windows, macOS, Linux).

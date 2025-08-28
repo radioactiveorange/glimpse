@@ -17,17 +17,17 @@ from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
 
 
-class RandomImageViewer(QMainWindow):
-    """Main application window for viewing random images."""
+class GlimpseViewer(QMainWindow):
+    """Main application window for Glimpse - random image viewer."""
     
     def __init__(self):
         super().__init__()
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setWindowTitle("Random Image Viewer")
+        self.setWindowTitle("Glimpse")
         self.setGeometry(100, 100, 950, 650)
         
         # Initialize settings
-        self.settings = QSettings("random-image-viewer", "RandomImageViewer")
+        self.settings = QSettings("glimpse", "Glimpse")
         
         # Initialize state
         self.folder = None
@@ -71,7 +71,7 @@ class RandomImageViewer(QMainWindow):
         image_layout = QVBoxLayout(image_widget)
         image_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.image_label = ClickableLabel("Welcome to Random Image Viewer", alignment=Qt.AlignCenter)
+        self.image_label = ClickableLabel("Welcome to Glimpse", alignment=Qt.AlignCenter)
         self.image_label.setScaledContents(False)
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -238,7 +238,7 @@ class RandomImageViewer(QMainWindow):
             self.setWindowTitle(base)
         else:
             folder_name = os.path.basename(self.folder) if self.folder else "Random Image Viewer"
-            self.setWindowTitle(f"Random Image Viewer - {folder_name}")
+            self.setWindowTitle(f"Glimpse - {folder_name}")
 
     def update_image_info(self, img_path=None):
         """Update image information display."""
@@ -804,6 +804,6 @@ class RandomImageViewer(QMainWindow):
                 base = os.path.basename(self.current_image)
                 self.setWindowTitle(base)
             else:
-                self.setWindowTitle(f"Random Image Viewer - Collection: {self.current_collection.name}")
+                self.setWindowTitle(f"Glimpse - Collection: {self.current_collection.name}")
         else:
             self._update_title()

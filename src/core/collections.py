@@ -69,7 +69,7 @@ class CollectionManager:
         """Get the collections directory path."""
         app_data_dir = QStandardPaths.writableLocation(QStandardPaths.AppDataLocation)
         if not app_data_dir:
-            app_data_dir = os.path.expanduser("~/.random-image-viewer")
+            app_data_dir = os.path.expanduser("~/.glimpse")
         return os.path.join(app_data_dir, "collections")
     
     def _ensure_collections_dir(self):

@@ -1,10 +1,10 @@
-"""Random Image Viewer - Main application entry point."""
+"""Glimpse - Main application entry point."""
 
 import sys
 from PySide6.QtWidgets import QApplication, QDialog
 
 from src.ui.styles import DARK_STYLESHEET
-from src.ui.main_window import RandomImageViewer
+from src.ui.main_window import GlimpseViewer
 from src.ui.startup_dialog import StartupDialog
 from src.core.image_utils import emoji_icon
 
@@ -25,7 +25,7 @@ def main():
         if not data or len(data) != 3:
             return
         collection, timer_enabled, timer_interval = data
-        viewer = RandomImageViewer()
+        viewer = GlimpseViewer()
         viewer.load_collection(collection, timer_enabled, timer_interval)
         viewer.show()
     
@@ -34,7 +34,7 @@ def main():
         if not data or len(data) != 3:
             return
         folder, timer_enabled, timer_interval = data
-        viewer = RandomImageViewer()
+        viewer = GlimpseViewer()
         viewer.load_folder(folder, timer_enabled, timer_interval)
         viewer.show()
     
