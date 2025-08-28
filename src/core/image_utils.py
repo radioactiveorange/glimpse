@@ -78,7 +78,7 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
     margin = size // 5  # Larger margin for clearer shapes
     
     if icon_type == "previous":
-        # Clear left-pointing triangle
+        # Clear left-pointing triangle (kept for backward compatibility)
         points = [
             QPoint(center + margin, margin),
             QPoint(center + margin, size - margin), 
@@ -89,7 +89,7 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
         painter.drawPolygon(QPolygon(points))
         
     elif icon_type == "next":
-        # Clear right-pointing triangle
+        # Clear right-pointing triangle (kept for backward compatibility)
         points = [
             QPoint(center - margin, margin),
             QPoint(center - margin, size - margin),
@@ -100,22 +100,21 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
         painter.drawPolygon(QPolygon(points))
         
     elif icon_type == "pause":
-        # Two thick vertical bars
+        # Two thick vertical bars with proper spacing
         painter.setBrush(brush)
         painter.setPen(Qt.NoPen)
-        bar_width = size // 6
+        bar_width = size // 7  # Slightly thinner bars
         bar_height = size - 2 * margin
-        gap = size // 10
+        gap = size // 4  # Much larger gap for better visibility
         painter.drawRoundedRect(center - bar_width - gap//2, margin, bar_width, bar_height, 1, 1)
         painter.drawRoundedRect(center + gap//2, margin, bar_width, bar_height, 1, 1)
         
     elif icon_type == "play":
-        # Slightly smaller play triangle
-        play_margin = margin + 2
+        # Play triangle - same size as other icons
         points = [
-            QPoint(play_margin, play_margin),
-            QPoint(play_margin, size - play_margin),
-            QPoint(size - play_margin, center)
+            QPoint(margin, margin),
+            QPoint(margin, size - margin),
+            QPoint(size - margin, center)
         ]
         painter.setBrush(brush)
         painter.setPen(Qt.NoPen)
@@ -175,6 +174,44 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(center - center_radius, center - center_radius, 
                           center_radius * 2, center_radius * 2)
+        
+    elif icon_type == "skip_previous":
+        # Skip previous: vertical bar + left triangle (like media controls)
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        
+        # Vertical bar on the left
+        bar_width = size // 8
+        bar_height = size - 2 * margin
+        painter.drawRoundedRect(margin, margin, bar_width, bar_height, 1, 1)
+        
+        # Triangle pointing left
+        triangle_margin = margin + bar_width + 2
+        points = [
+            QPoint(size - margin, margin),
+            QPoint(size - margin, size - margin),
+            QPoint(triangle_margin, center)
+        ]
+        painter.drawPolygon(QPolygon(points))
+        
+    elif icon_type == "skip_next":
+        # Skip next: right triangle + vertical bar (like media controls)
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        
+        # Triangle pointing right
+        triangle_end = size - margin - (size // 8) - 2
+        points = [
+            QPoint(margin, margin),
+            QPoint(margin, size - margin),
+            QPoint(triangle_end, center)
+        ]
+        painter.drawPolygon(QPolygon(points))
+        
+        # Vertical bar on the right
+        bar_width = size // 8
+        bar_height = size - 2 * margin
+        painter.drawRoundedRect(size - margin - bar_width, margin, bar_width, bar_height, 1, 1)
     
     painter.end()
     return QIcon(pixmap)

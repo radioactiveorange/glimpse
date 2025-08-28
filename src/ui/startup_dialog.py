@@ -1,0 +1,364 @@
+"""Startup dialog for collection management and quick folder access."""
+
+import os
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, 
+    QListWidgetItem, QFileDialog, QInputDialog, QMessageBox, QWidget,
+    QSplitter, QTextEdit, QGroupBox, QSizePolicy
+)
+from PySide6.QtGui import QFont, QIcon, QPixmap
+from PySide6.QtCore import Qt, QSize, Signal
+
+from ..core.collections import CollectionManager, Collection
+from ..core.image_utils import create_professional_icon
+from .timer_dialog import TimerConfigDialog
+
+
+class StartupDialog(QDialog):
+    """Startup dialog for managing collections and quick folder access."""
+    
+    # Signals to communicate with main application
+    collection_selected = Signal(object)  # Emits tuple: (Collection, timer_enabled, timer_interval)
+    folder_selected = Signal(object)  # Emits tuple: (folder_path, timer_enabled, timer_interval)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.collection_manager = CollectionManager()
+        self.setWindowTitle("Random Image Viewer - Welcome")
+        self.setModal(True)
+        self.resize(800, 600)
+        
+        self.init_ui()
+        self.refresh_collections()
+    
+    def init_ui(self):
+        """Initialize the user interface."""
+        layout = QVBoxLayout(self)
+        layout.setSpacing(20)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title
+        title = QLabel("Random Image Viewer")
+        title.setAlignment(Qt.AlignCenter)
+        title_font = QFont()
+        title_font.setPointSize(18)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+        
+        # Subtitle
+        subtitle = QLabel("Choose how to start viewing images")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("color: #666; margin-bottom: 20px;")
+        layout.addWidget(subtitle)
+        
+        # Main content area
+        main_splitter = QSplitter(Qt.Horizontal)
+        layout.addWidget(main_splitter)
+        
+        # Left side - Collections
+        collections_widget = QWidget()
+        collections_layout = QVBoxLayout(collections_widget)
+        collections_layout.setContentsMargins(0, 0, 10, 0)
+        
+        # Collections group
+        collections_group = QGroupBox("Collections")
+        collections_group_layout = QVBoxLayout(collections_group)
+        
+        # Collections list
+        self.collections_list = QListWidget()
+        self.collections_list.setMinimumHeight(300)
+        self.collections_list.itemDoubleClicked.connect(self.on_collection_double_clicked)
+        self.collections_list.itemClicked.connect(self.on_collection_selected)
+        collections_group_layout.addWidget(self.collections_list)
+        
+        # Collection buttons
+        collection_buttons_layout = QHBoxLayout()
+        
+        self.new_collection_btn = QPushButton("New Collection")
+        self.new_collection_btn.setIcon(create_professional_icon("zoom_in", 16))
+        self.new_collection_btn.clicked.connect(self.create_new_collection)
+        collection_buttons_layout.addWidget(self.new_collection_btn)
+        
+        self.edit_collection_btn = QPushButton("Edit")
+        self.edit_collection_btn.setEnabled(False)
+        self.edit_collection_btn.clicked.connect(self.edit_selected_collection)
+        collection_buttons_layout.addWidget(self.edit_collection_btn)
+        
+        self.delete_collection_btn = QPushButton("Delete")
+        self.delete_collection_btn.setEnabled(False)
+        self.delete_collection_btn.clicked.connect(self.delete_selected_collection)
+        collection_buttons_layout.addWidget(self.delete_collection_btn)
+        
+        collections_group_layout.addLayout(collection_buttons_layout)
+        collections_layout.addWidget(collections_group)
+        
+        # Right side - Quick options and details
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        right_layout.setContentsMargins(10, 0, 0, 0)
+        
+        # Quick shuffle group
+        quick_group = QGroupBox("Quick Start")
+        quick_layout = QVBoxLayout(quick_group)
+        
+        self.quick_shuffle_btn = QPushButton("Quick Shuffle Folder")
+        self.quick_shuffle_btn.setIcon(create_professional_icon("skip_next", 16))
+        self.quick_shuffle_btn.clicked.connect(self.quick_shuffle_folder)
+        self.quick_shuffle_btn.setMinimumHeight(40)
+        quick_layout.addWidget(self.quick_shuffle_btn)
+        
+        quick_desc = QLabel("Quickly start viewing images from a single folder")
+        quick_desc.setWordWrap(True)
+        quick_desc.setStyleSheet("color: #666; font-size: 11px; margin-top: 5px;")
+        quick_layout.addWidget(quick_desc)
+        
+        right_layout.addWidget(quick_group)
+        
+        # Collection details
+        details_group = QGroupBox("Collection Details")
+        details_layout = QVBoxLayout(details_group)
+        
+        self.details_text = QTextEdit()
+        self.details_text.setReadOnly(True)
+        self.details_text.setMaximumHeight(150)
+        self.details_text.setPlaceholderText("Select a collection to view details")
+        details_layout.addWidget(self.details_text)
+        
+        right_layout.addWidget(details_group)
+        
+        # Add stretch to right side
+        right_layout.addStretch()
+        
+        # Set splitter proportions
+        main_splitter.addWidget(collections_widget)
+        main_splitter.addWidget(right_widget)
+        main_splitter.setSizes([400, 400])
+        
+        # Bottom buttons
+        bottom_layout = QHBoxLayout()
+        bottom_layout.addStretch()
+        
+        self.open_collection_btn = QPushButton("Open Collection")
+        self.open_collection_btn.setEnabled(False)
+        self.open_collection_btn.clicked.connect(self.open_selected_collection)
+        self.open_collection_btn.setMinimumHeight(35)
+        bottom_layout.addWidget(self.open_collection_btn)
+        
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.clicked.connect(self.reject)
+        cancel_btn.setMinimumHeight(35)
+        bottom_layout.addWidget(cancel_btn)
+        
+        layout.addLayout(bottom_layout)
+    
+    def refresh_collections(self):
+        """Refresh the collections list."""
+        self.collections_list.clear()
+        collections = self.collection_manager.get_all_collections()
+        
+        for collection in collections:
+            item = QListWidgetItem()
+            item.setText(f"{collection.name}")
+            item.setData(Qt.UserRole, collection)
+            
+            # Add subtitle with path count and image count
+            subtitle = f"{len(collection.paths)} folder{'s' if len(collection.paths) != 1 else ''}, {collection.image_count} images"
+            item.setToolTip(f"{collection.name}\n{subtitle}")
+            
+            self.collections_list.addItem(item)
+        
+        # Show message if no collections
+        if not collections:
+            item = QListWidgetItem("No collections found. Create your first collection!")
+            item.setFlags(Qt.NoItemFlags)  # Make it non-selectable
+            self.collections_list.addItem(item)
+    
+    def on_collection_selected(self, item):
+        """Handle collection selection."""
+        collection = item.data(Qt.UserRole)
+        if collection:
+            self.open_collection_btn.setEnabled(True)
+            self.edit_collection_btn.setEnabled(True)
+            self.delete_collection_btn.setEnabled(True)
+            
+            # Update details
+            details = f"<b>{collection.name}</b><br><br>"
+            details += f"<b>Folders:</b> {len(collection.paths)}<br>"
+            details += f"<b>Total Images:</b> {collection.image_count}<br>"
+            if collection.last_used:
+                from datetime import datetime
+                try:
+                    last_used = datetime.fromisoformat(collection.last_used)
+                    details += f"<b>Last Used:</b> {last_used.strftime('%B %d, %Y at %I:%M %p')}<br>"
+                except:
+                    pass
+            if collection.created_date:
+                try:
+                    created = datetime.fromisoformat(collection.created_date)
+                    details += f"<b>Created:</b> {created.strftime('%B %d, %Y')}<br>"
+                except:
+                    pass
+            
+            details += "<br><b>Folders:</b><br>"
+            for path in collection.paths:
+                details += f"• {path}<br>"
+            
+            self.details_text.setHtml(details)
+        else:
+            self.open_collection_btn.setEnabled(False)
+            self.edit_collection_btn.setEnabled(False)
+            self.delete_collection_btn.setEnabled(False)
+            self.details_text.clear()
+    
+    def on_collection_double_clicked(self, item):
+        """Handle double-click on collection item."""
+        collection = item.data(Qt.UserRole)
+        if collection:
+            self.open_selected_collection()
+    
+    def create_new_collection(self):
+        """Create a new collection."""
+        name, ok = QInputDialog.getText(self, "New Collection", "Collection name:")
+        if not ok or not name.strip():
+            return
+        
+        name = name.strip()
+        if self.collection_manager.collection_exists(name):
+            QMessageBox.warning(self, "Collection Exists", 
+                              f"A collection named '{name}' already exists.")
+            return
+        
+        # Select folders with better UX
+        folders = []
+        
+        # Start with first folder
+        first_folder = QFileDialog.getExistingDirectory(self, f"Select first folder for '{name}'")
+        if not first_folder:
+            return
+        
+        folders.append(first_folder)
+        
+        # Ask if user wants to add more folders
+        while True:
+            reply = QMessageBox.question(self, "Add Another Folder?", 
+                                       f"Collection '{name}' currently has {len(folders)} folder(s).\n\n"
+                                       f"Would you like to add another folder?",
+                                       QMessageBox.Yes | QMessageBox.No,
+                                       QMessageBox.No)
+            
+            if reply == QMessageBox.Yes:
+                additional_folder = QFileDialog.getExistingDirectory(self, f"Select additional folder for '{name}'")
+                if additional_folder and additional_folder not in folders:
+                    folders.append(additional_folder)
+                elif additional_folder in folders:
+                    QMessageBox.information(self, "Folder Already Added", 
+                                          "This folder is already part of the collection.")
+            else:
+                break
+        
+        # Create collection
+        collection = self.collection_manager.create_collection(name, folders)
+        if collection:
+            self.refresh_collections()
+            # Select the new collection
+            for i in range(self.collections_list.count()):
+                item = self.collections_list.item(i)
+                if item.data(Qt.UserRole) and item.data(Qt.UserRole).name == name:
+                    self.collections_list.setCurrentItem(item)
+                    self.on_collection_selected(item)
+                    break
+        else:
+            QMessageBox.critical(self, "Error", "Failed to create collection.")
+    
+    def edit_selected_collection(self):
+        """Edit the selected collection."""
+        current = self.collections_list.currentItem()
+        if not current:
+            return
+        
+        collection = current.data(Qt.UserRole)
+        if not collection:
+            return
+        
+        # Edit name
+        new_name, ok = QInputDialog.getText(self, "Edit Collection", 
+                                          "Collection name:", text=collection.name)
+        if not ok or not new_name.strip():
+            return
+        
+        new_name = new_name.strip()
+        
+        # Check if name changed and if new name exists
+        if new_name != collection.name and self.collection_manager.collection_exists(new_name):
+            QMessageBox.warning(self, "Collection Exists", 
+                              f"A collection named '{new_name}' already exists.")
+            return
+        
+        # If name changed, delete old and create new
+        old_name = collection.name
+        collection.name = new_name
+        
+        if old_name != new_name:
+            self.collection_manager.delete_collection(old_name)
+        
+        # Update and save
+        collection.update_image_count()
+        self.collection_manager.save_collection(collection)
+        self.refresh_collections()
+    
+    def delete_selected_collection(self):
+        """Delete the selected collection."""
+        current = self.collections_list.currentItem()
+        if not current:
+            return
+        
+        collection = current.data(Qt.UserRole)
+        if not collection:
+            return
+        
+        reply = QMessageBox.question(self, "Delete Collection", 
+                                   f"Are you sure you want to delete '{collection.name}'?\n\n"
+                                   f"This will only remove the collection, not the actual image files.")
+        
+        if reply == QMessageBox.Yes:
+            if self.collection_manager.delete_collection(collection.name):
+                self.refresh_collections()
+            else:
+                QMessageBox.critical(self, "Error", "Failed to delete collection.")
+    
+    def open_selected_collection(self):
+        """Open the selected collection with timer configuration."""
+        current = self.collections_list.currentItem()
+        if not current:
+            return
+        
+        collection = current.data(Qt.UserRole)
+        if collection:
+            # Show timer configuration dialog
+            timer_dialog = TimerConfigDialog(self)
+            if timer_dialog.exec() == QDialog.Accepted:
+                timer_enabled, timer_interval = timer_dialog.get_timer_settings()
+                
+                collection.mark_as_used()
+                self.collection_manager.save_collection(collection)
+                
+                # Emit collection with timer settings
+                self.collection_selected.emit((collection, timer_enabled, timer_interval))
+                self.accept()
+            # If timer dialog was cancelled, just return (keep startup dialog open)
+    
+    def quick_shuffle_folder(self):
+        """Quick shuffle a single folder with timer configuration."""
+        folder = QFileDialog.getExistingDirectory(self, "Select folder to shuffle")
+        if folder:
+            # Show timer configuration dialog
+            timer_dialog = TimerConfigDialog(self)
+            if timer_dialog.exec() == QDialog.Accepted:
+                timer_enabled, timer_interval = timer_dialog.get_timer_settings()
+                
+                # Emit folder with timer settings
+                self.folder_selected.emit((folder, timer_enabled, timer_interval))
+                self.accept()
+            # If timer dialog was cancelled, just return (keep startup dialog open)
+        # If folder dialog was cancelled, just return (keep startup dialog open)

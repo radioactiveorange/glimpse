@@ -14,6 +14,7 @@ from PySide6.QtCore import Qt, QTimer, QSize, QSettings
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
+from ..core.collections import Collection
 
 
 class RandomImageViewer(QMainWindow):
@@ -27,14 +28,11 @@ class RandomImageViewer(QMainWindow):
         
         # Initialize settings
         self.settings = QSettings("random-image-viewer", "RandomImageViewer")
-        last_folder = self.settings.value("last_folder", type=str)
-        if last_folder and os.path.exists(last_folder):
-            self.folder = last_folder
-        else:
-            self.folder = os.getcwd()
         
         # Initialize state
-        self.images = get_images_in_folder(self.folder)
+        self.folder = None
+        self.current_collection = None
+        self.images = []
         self.history = []
         self.current_image = None
         self.current_index = -1
@@ -61,8 +59,6 @@ class RandomImageViewer(QMainWindow):
         self.timer.timeout.connect(self._on_timer_tick)
         
         self.init_ui()
-        self.update_image_info()
-        self._update_title()
         self._initial_image_shown = False
 
     def init_ui(self):
@@ -75,7 +71,7 @@ class RandomImageViewer(QMainWindow):
         image_layout = QVBoxLayout(image_widget)
         image_layout.setContentsMargins(6, 6, 6, 6)
 
-        self.image_label = ClickableLabel("Open a folder to start", alignment=Qt.AlignCenter)
+        self.image_label = ClickableLabel("Welcome to Random Image Viewer", alignment=Qt.AlignCenter)
         self.image_label.setScaledContents(False)
         self.image_label.setMinimumSize(400, 400)
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -131,6 +127,10 @@ class RandomImageViewer(QMainWindow):
             self.show_random_image()
             self._initial_image_shown = True
             self._reset_timer()
+        
+        # Update title and image info on show
+        self.update_image_info()
+        self._update_title()
 
     def keyPressEvent(self, event):
         """Handle keyboard shortcuts."""
@@ -153,6 +153,8 @@ class RandomImageViewer(QMainWindow):
     def toggle_pause(self):
         """Toggle pause state of the auto-advance timer."""
         if not self._auto_advance_active:
+            # If timer is disabled, enable it instead of just pausing
+            self.start_timer()
             return
         
         self._timer_paused = not self._timer_paused
@@ -162,9 +164,17 @@ class RandomImageViewer(QMainWindow):
             self.timer.start()
         
         self.button_overlay.set_pause_state(self._timer_paused)
+    
+    def start_timer(self):
+        """Start/enable the auto-advance timer."""
+        self._auto_advance_active = True
+        self._timer_paused = False
+        self.settings.setValue("auto_advance_enabled", True)
+        self._reset_timer()
+        self.button_overlay.set_pause_state(False)
 
     def stop_timer(self):
-        """Stop the auto-advance timer completely."""
+        """Stop and disable the auto-advance timer completely."""
         self._auto_advance_active = False
         self._timer_paused = False
         self.settings.setValue("auto_advance_enabled", False)
@@ -212,33 +222,23 @@ class RandomImageViewer(QMainWindow):
         """Open folder selection dialog."""
         folder = QFileDialog.getExistingDirectory(self, "Select Image Folder")
         if folder:
-            self.folder = folder
-            self.settings.setValue("last_folder", folder)
-            self.images = get_images_in_folder(folder)
-            self.history.clear()
-            self.history_list.clear()
-            self.history_list.repaint()
-            self.current_image = None
-            self.history_index = -1
-            self.flipped_h = False
-            self.flipped_v = False
-            self.update_image_info()
-            self._update_title()
+            self.load_folder(folder, False, 60)  # Default: no timer, 60 seconds
             if self.images:
                 self.show_random_image()
-            else:
-                self.image_label.setText("No images found in selected folder or its subfolders.")
-            self._reset_timer()
 
     def _update_title(self, img_path=None, info=None):
         """Update the window title with current image info."""
-        count = len(self.images)
-        folder_name = os.path.basename(self.folder) if self.folder else ""
-        if img_path and info:
+        # Use collection title if we have one
+        if self.current_collection:
+            self._update_title_for_collection()
+            return
+            
+        if img_path:
             base = os.path.basename(img_path)
-            self.setWindowTitle(f"Random Image Viewer - {base} ({info}) - {img_path}")
+            self.setWindowTitle(base)
         else:
-            self.setWindowTitle(f"Random Image Viewer - {folder_name} ({count} images found)")
+            folder_name = os.path.basename(self.folder) if self.folder else "Random Image Viewer"
+            self.setWindowTitle(f"Random Image Viewer - {folder_name}")
 
     def update_image_info(self, img_path=None):
         """Update image information display."""
@@ -251,7 +251,12 @@ class RandomImageViewer(QMainWindow):
             info = f"{pixmap.width()}x{pixmap.height()}"
         else:
             info = base
-        self._update_title(img_path, info)
+        
+        # Use appropriate title method
+        if self.current_collection:
+            self._update_title_for_collection()
+        else:
+            self._update_title(img_path, info)
 
     def show_random_image(self):
         """Display a random image from the current folder."""
@@ -293,13 +298,8 @@ class RandomImageViewer(QMainWindow):
         else:
             self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
         
-        # Update title with image info
-        pixmap = QPixmap(img_path)
-        if not pixmap.isNull():
-            info = f"{pixmap.width()}x{pixmap.height()}"
-        else:
-            info = os.path.basename(img_path)
-        self._update_title(img_path, info)
+        # Update title with just filename
+        self._update_title(img_path)
 
     def _load_and_process_image(self, img_path):
         """Load image from disk and apply transformations, caching the result."""
@@ -353,7 +353,6 @@ class RandomImageViewer(QMainWindow):
             # Calculate position to center the image with pan offset
             x = (self.image_label.width() - scaled.width()) // 2 + self.pan_offset_x
             y = (self.image_label.height() - scaled.height()) // 2 + self.pan_offset_y
-            print(f"Drawing image at: ({x}, {y})")
             
             # Draw the scaled image at offset position
             painter.drawPixmap(x, y, scaled)
@@ -421,10 +420,16 @@ class RandomImageViewer(QMainWindow):
         self.settings.setValue("show_history_panel", bool(checked))
 
     def toggle_timer(self, checked):
-        """Toggle the auto-advance timer."""
+        """Toggle the auto-advance timer from context menu."""
         self._auto_advance_active = bool(checked)
+        self._timer_paused = False  # Reset pause state when toggling
         self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
         self._reset_timer()
+        # Always show button overlay when image is loaded, regardless of timer state
+        if self.current_image:
+            self.button_overlay.show()
+        # Update button overlay to reflect new state
+        self.button_overlay.set_pause_state(False)
 
     def change_bg_mode(self, mode):
         """Change the background color mode."""
@@ -477,14 +482,18 @@ class RandomImageViewer(QMainWindow):
             self._update_progress()
             self.timer.start()
             self.progress_bar.show()
-            self.button_overlay.show()
+            if self.current_image:
+                self.button_overlay.show()
             self.button_overlay.set_pause_state(False)
         else:
             self.timer.stop()
             self._timer_paused = False
             self.progress_bar.set_remaining_time(0)
             self.progress_bar.hide()
-            self.button_overlay.hide()
+            # Keep button overlay visible even when timer is disabled
+            if self.current_image:
+                self.button_overlay.show()
+            self.button_overlay.set_pause_state(False)
 
     def _on_timer_tick(self):
         """Handle timer tick for auto-advance."""
@@ -645,6 +654,19 @@ class RandomImageViewer(QMainWindow):
     def zoom_out(self):
         """Zoom out on the current image."""
         self.zoom_factor = max(self.zoom_factor / 1.15, 0.1)
+        
+        # Auto-reset pan when image becomes smaller than display area
+        if self._cached_pixmap:
+            base_size = self.image_label.size()
+            target_size = base_size * self.zoom_factor
+            scaled_size = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation).size()
+            
+            # Reset pan if image is now smaller than display in both dimensions
+            if (scaled_size.width() <= self.image_label.width() and 
+                scaled_size.height() <= self.image_label.height()):
+                self.pan_offset_x = 0
+                self.pan_offset_y = 0
+        
         self._update_zoom_display()
 
     def reset_zoom(self):
@@ -659,11 +681,33 @@ class RandomImageViewer(QMainWindow):
         pass  # Just for signal connection, actual panning handled in handle_panning
 
     def handle_panning(self, delta):
-        """Handle panning movement."""
-        # Only allow panning when zoomed in
-        if self.zoom_factor > 1.0:
-            self.pan_offset_x += delta.x()
-            self.pan_offset_y += delta.y()
+        """Handle panning movement with improved logic."""
+        if not self._cached_pixmap:
+            return
+            
+        # Calculate current image dimensions after zoom
+        base_size = self.image_label.size()
+        target_size = base_size * self.zoom_factor
+        scaled_size = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation).size()
+        
+        # Always allow panning if there's currently a pan offset (to reset position)
+        # or if image is larger than display area
+        can_pan_x = (scaled_size.width() > self.image_label.width()) or (self.pan_offset_x != 0)
+        can_pan_y = (scaled_size.height() > self.image_label.height()) or (self.pan_offset_y != 0)
+        
+        # Apply panning with constraints
+        if can_pan_x:
+            new_offset_x = self.pan_offset_x + delta.x()
+            # Constrain panning so image doesn't go too far off screen
+            max_offset_x = max(0, (scaled_size.width() - self.image_label.width()) // 2 + 50)
+            self.pan_offset_x = max(-max_offset_x, min(max_offset_x, new_offset_x))
+            
+        if can_pan_y:
+            new_offset_y = self.pan_offset_y + delta.y()
+            # Constrain panning so image doesn't go too far off screen  
+            max_offset_y = max(0, (scaled_size.height() - self.image_label.height()) // 2 + 50)
+            self.pan_offset_y = max(-max_offset_y, min(max_offset_y, new_offset_y))
+        
         self._update_zoom_display()
 
     def end_panning(self):
@@ -675,3 +719,91 @@ class RandomImageViewer(QMainWindow):
         self.pan_offset_x = 0
         self.pan_offset_y = 0
         self._update_zoom_display()
+    
+    def load_collection(self, collection: Collection, timer_enabled: bool = False, timer_interval: int = 60):
+        """Load images from a collection with timer settings."""
+        self.current_collection = collection
+        self.folder = None  # Clear single folder
+        
+        # Configure timer settings
+        self._auto_advance_active = timer_enabled
+        self.timer_interval = timer_interval
+        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
+        self.settings.setValue("timer_interval", self.timer_interval)
+        
+        # Get all images from collection
+        self.images = collection.get_all_images()
+        
+        # Clear history
+        self.history.clear()
+        self.history_list.clear()
+        self.history_list.repaint()
+        self.current_image = None
+        self.history_index = -1
+        
+        # Reset transformations
+        self.flipped_h = False
+        self.flipped_v = False
+        
+        # Update UI
+        self.update_image_info()
+        self._update_title_for_collection()
+        
+        if self.images:
+            # Don't auto-show image here, let showEvent handle it
+            pass
+        else:
+            self.image_label.setText("No images found in selected collection.")
+        
+        self._reset_timer()
+    
+    def load_folder(self, folder_path: str, timer_enabled: bool = False, timer_interval: int = 60):
+        """Load images from a single folder (quick shuffle mode) with timer settings."""
+        self.folder = folder_path
+        self.current_collection = None  # Clear collection
+        
+        # Configure timer settings
+        self._auto_advance_active = timer_enabled
+        self.timer_interval = timer_interval
+        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
+        self.settings.setValue("timer_interval", self.timer_interval)
+        
+        # Save as last folder for quick access
+        self.settings.setValue("last_folder", folder_path)
+        
+        # Get images
+        self.images = get_images_in_folder(folder_path)
+        
+        # Clear history
+        self.history.clear()
+        self.history_list.clear()
+        self.history_list.repaint()
+        self.current_image = None
+        self.history_index = -1
+        
+        # Reset transformations
+        self.flipped_h = False
+        self.flipped_v = False
+        
+        # Update UI
+        self.update_image_info()
+        self._update_title()
+        
+        if self.images:
+            # Don't auto-show image here, let showEvent handle it
+            pass
+        else:
+            self.image_label.setText("No images found in selected folder or its subfolders.")
+        
+        self._reset_timer()
+    
+    def _update_title_for_collection(self):
+        """Update window title for collection mode."""
+        if self.current_collection:
+            if self.current_image:
+                base = os.path.basename(self.current_image)
+                self.setWindowTitle(base)
+            else:
+                self.setWindowTitle(f"Random Image Viewer - Collection: {self.current_collection.name}")
+        else:
+            self._update_title()

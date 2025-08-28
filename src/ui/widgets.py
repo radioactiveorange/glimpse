@@ -249,24 +249,26 @@ class ButtonOverlay(QWidget):
         # Import the icon function
         from ..core.image_utils import create_professional_icon
         
-        # Create buttons with professional geometric icons
+        # Create buttons with professional geometric icons (all same size)
+        icon_size = 18  # Consistent size for all icons
+        
         self.prev_btn = QPushButton()
-        self.prev_btn.setIcon(create_professional_icon("previous", 20))
+        self.prev_btn.setIcon(create_professional_icon("skip_previous", icon_size))
         
         self.pause_btn = QPushButton()
-        self.pause_btn.setIcon(create_professional_icon("pause", 20))
+        self.pause_btn.setIcon(create_professional_icon("pause", icon_size))
         
         self.stop_btn = QPushButton()
-        self.stop_btn.setIcon(create_professional_icon("stop", 20))
+        self.stop_btn.setIcon(create_professional_icon("stop", icon_size))
         
         self.next_btn = QPushButton()
-        self.next_btn.setIcon(create_professional_icon("next", 20))
+        self.next_btn.setIcon(create_professional_icon("skip_next", icon_size))
         
         self.zoom_out_btn = QPushButton()
-        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", 20))
+        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", icon_size))
         
         self.zoom_in_btn = QPushButton()
-        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", 20))
+        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", icon_size))
         
         # Connect signals
         self.prev_btn.clicked.connect(self.previous_clicked.emit)
@@ -288,4 +290,5 @@ class ButtonOverlay(QWidget):
         """Update pause button based on timer state."""
         from ..core.image_utils import create_professional_icon
         icon_type = "play" if is_paused else "pause"
-        self.pause_btn.setIcon(create_professional_icon(icon_type, 20))
+        icon_size = 18  # Match the consistent icon size
+        self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size))

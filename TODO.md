@@ -18,5 +18,13 @@
 - [ ] Maybe improve grayscale? https://tannerhelland.com/2011/10/01/grayscale-image-algorithm-vb6.html
 
 ## Phase 4: Major Features
-- [ ] Add collections feature where a collection is basically a list of paths where to load images
-- [ ] Upon loading the app, users have the option to quick shuffle a folder or to create/load/delete collection, for reference use ShuffleBird https://github.com/PuffedUpBirdie/ShuffleBird
+- [x] Add collections feature where a collection is basically a list of paths where to load images
+- [x] Upon loading the app, users have the option to quick shuffle a folder or to create/load/delete collection, for reference use ShuffleBird https://github.com/PuffedUpBirdie/ShuffleBird
+
+
+## Bugs
+- [x] There's a bug when creating a collection. After selecting a folder, it hides the file dialog but then shows it again. 
+- [x] Fix play, pause, stop timer buttons. Make it consistent with enable/disable timer function in context menu.
+- [x] Image panning behavior is strange specially when image is zoomed out. The image cannot be panned anymore when the image is zoomed out even if it is out of center.
+- [x] Play button looks small that other buttons.
+- [x] Quick shuffle closes application instead of opening viewer. 
