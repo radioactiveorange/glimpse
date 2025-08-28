@@ -149,7 +149,7 @@ This project was built collaboratively with Claude Code. Contributions, bug repo
 
 ## 📝 License
 
-This project is open source. License details to be added.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 
