@@ -8,11 +8,20 @@ A simple, modern, **cross-platform** desktop app to view random images from any 
 
 - 📁 **Open Any Folder:** Load images from a folder and its subfolders.
 - 🎲 **Random Image:** Instantly show a random image, avoiding repeats until all are seen.
-- ⏮️ ⏭️ **History Navigation:** Go back and forward through viewed images.
-- 🕒 **Auto-Advance Timer:** Automatically switch to a new random image at set intervals, with a circular countdown overlay.
-- 🔍 **Zoom:** Zoom in/out/reset with mouse wheel, keyboard, or context menu.
+- ⏮️ ⏭️ **History Navigation:** Go back and forward through viewed images, with a clickable thumbnail history panel.
+- 🕒 **Auto-Advance Timer:** Automatically switch to a new random image at set intervals, with a smooth, animated circular countdown overlay.
+- 🔍 **Zoom:** Zoom in, out, or reset with mouse wheel, keyboard shortcuts, or context menu.
 - 🖱️ **Context Menu:** Right-click the image for all main actions (open folder, next/prev, zoom, timer, settings, etc.).
-- 🌑 **Dark Theme:** Clean, minimal dark UI.
+- 🖼️ **Image Manipulation:**
+  - Flip image horizontally or vertically
+  - Toggle grayscale mode
+- 🎨 **Background Modes:** Choose between black, gray, or adaptive background color based on the image.
+- 🗂️ **Clickable File Path:** Click the image filename to open its location in your system's file explorer (Windows, macOS, Linux).
+- 💾 **Persistent Settings:** Remembers your last folder, timer interval, history panel state, background mode, and more between sessions.
+- 🖼️ **Thumbnail History Panel:** View and click through previously seen images with thumbnails.
+- ⏱️ **Animated Timer Overlay:** Smooth, circular countdown timer overlay for auto-advance mode.
+- ⌨️ **Keyboard Shortcuts:** All main actions accessible via keyboard (see below).
+- 🌑 **Dark Theme:** Clean, minimal, modern dark UI.
 - 🖥️ **Cross-platform:** Works on Windows, macOS, and Linux.
 
 ---
