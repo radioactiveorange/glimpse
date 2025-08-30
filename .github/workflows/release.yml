@@ -129,7 +129,15 @@ jobs:
       - name: Create version file
         shell: bash
         run: |
-          echo "VERSION = '${{ needs.semantic-release.outputs.new-release-version }}'" > src/version.py
+          cat > src/version.py << 'EOF'
+          """Version information for Glimpse."""
+          
+          VERSION = "${{ needs.semantic-release.outputs.new-release-version }}"
+          
+          def get_version():
+              """Get the current version string."""
+              return VERSION
+          EOF
 
       - name: Build executable (Linux with virtual display)
         if: matrix.os == 'ubuntu-latest'
@@ -212,7 +220,15 @@ jobs:
 
       - name: Create version file for semantic-release
         run: |
-          echo "VERSION = '${{ needs.semantic-release.outputs.new-release-version }}'" > src/version.py
+          cat > src/version.py << 'EOF'
+          """Version information for Glimpse."""
+          
+          VERSION = "${{ needs.semantic-release.outputs.new-release-version }}"
+          
+          def get_version():
+              """Get the current version string."""
+              return VERSION
+          EOF
 
       - name: Run semantic-release (full release)
         run: semantic-release
