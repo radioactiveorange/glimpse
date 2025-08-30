@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/radioactiveorange/glimpse/compare/v1.1.0...v1.1.1) (2025-08-30)
+
+### Bug Fixes
+
+* show version on welcome dialog ([2a30bd6](https://github.com/radioactiveorange/glimpse/commit/2a30bd6c16a5fa8e1d0db9659f0032a69c790da0))
+
 ## [1.1.0](https://github.com/radioactiveorange/glimpse/compare/v1.0.0...v1.1.0) (2025-08-30)
 
 ### Features
