@@ -10,13 +10,14 @@ from PySide6.QtWidgets import (
     QMenu, QInputDialog, QDialog, QApplication
 )
 from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
-from PySide6.QtCore import Qt, QTimer, QSize, QSettings
+from PySide6.QtCore import Qt, QTimer, QSize, QSettings, QThread, Signal
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
 from .startup_dialog import StartupDialog
 from .loading_dialog import LoadingDialog
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
+
 
 
 class GlimpseViewer(QMainWindow):
@@ -48,6 +49,7 @@ class GlimpseViewer(QMainWindow):
         self.flipped_v = False
         self._timer_paused = False
         self._cached_pixmap = None  # Cache processed image for smooth zooming
+        self._pending_grayscale_path = None  # Track if grayscale processing is pending
         
         # Panning state
         self.pan_offset_x = 0
@@ -62,6 +64,7 @@ class GlimpseViewer(QMainWindow):
         
         self.init_ui()
         self._initial_image_shown = False
+    
     
     def center_on_screen(self):
         """Center the window on the screen."""
@@ -317,11 +320,7 @@ class GlimpseViewer(QMainWindow):
             self.history_list.clear()
             available = self.images[:]
         
-        # If timer is active, try to avoid very large files that might cause issues
-        if self._auto_advance_active:
-            manageable_images = [img for img in available if not self._is_image_too_large(img)]
-            if manageable_images:
-                available = manageable_images
+        # Note: Removed expensive file size checking that was causing freezing with large collections
         
         img_path = random.choice(available)
         self.display_image(img_path)
@@ -366,8 +365,9 @@ class GlimpseViewer(QMainWindow):
             return False
     
     def _load_and_process_image(self, img_path):
-        """Load image from disk and apply transformations, caching the result."""
+        """Load image from disk and apply all transformations immediately but non-blocking."""
         try:
+            # Load image from disk
             pixmap = QPixmap(img_path)
             if pixmap.isNull():
                 # Check if this might be due to size limit
@@ -396,10 +396,31 @@ class GlimpseViewer(QMainWindow):
             self._cached_pixmap = None
             return
         
-        # Apply transformations
+        # Process image with all transformations immediately but without blocking UI
+        self.current_image = img_path
+        self._pending_grayscale_path = img_path
+        
+        # Use QTimer.singleShot with 0ms to process immediately but yield control to UI
+        QTimer.singleShot(0, lambda: self._process_image_immediately(pixmap, img_path))
+        
+        # Reset pan position when loading new image
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+    
+    def _process_image_immediately(self, pixmap, img_path):
+        """Process image with all transformations immediately but non-blocking."""
+        # Only process if this is still the current image (user didn't navigate away)
+        if img_path != self.current_image or img_path != self._pending_grayscale_path:
+            return
+        
+        # Apply all transformations
         image = pixmap.toImage()
+        
+        # Apply grayscale first (if enabled)
         if self.settings.value("grayscale_enabled", False, type=bool):
             image = self._apply_improved_grayscale(image)
+        
+        # Apply flips
         if self.flipped_h:
             transform = QTransform().scale(-1, 1)
             image = image.transformed(transform)
@@ -407,64 +428,18 @@ class GlimpseViewer(QMainWindow):
             transform = QTransform().scale(1, -1)
             image = image.transformed(transform)
         
-        # Cache the processed pixmap
+        # Cache the final processed result
         self._cached_pixmap = QPixmap.fromImage(image)
-        self.current_image = img_path
         
-        # Reset pan position when loading new image
-        self.pan_offset_x = 0
-        self.pan_offset_y = 0
+        # Update display immediately
+        self._update_zoom_display()
+        
+        self._pending_grayscale_path = None
     
     def _apply_improved_grayscale(self, image):
-        """Apply improved grayscale conversion using human eye correction (ITU-R BT.709)."""
-        # Convert to RGB32 format if needed
-        if image.format() != QImage.Format_RGB32:
-            image = image.convertToFormat(QImage.Format_RGB32)
-        
-        width = image.width()
-        height = image.height()
-        total_pixels = width * height
-        
-        # For large images, show a wait cursor to indicate processing
-        show_wait_cursor = total_pixels > 2000000  # 2 megapixels
-        if show_wait_cursor:
-            self.setCursor(Qt.WaitCursor)
-        
-        try:
-            # For very large images (>5MP), use Qt's built-in fast conversion 
-            # and accept slightly less accurate color reproduction
-            if total_pixels > 5000000:  # 5 megapixels
-                return image.convertToFormat(QImage.Format_Grayscale8).convertToFormat(QImage.Format_RGB32)
-            
-            # Create grayscale copy
-            grayscale_image = image.copy()
-            
-            # Process line by line for better performance
-            for y in range(height):
-                scan_line = grayscale_image.scanLine(y)
-                # Convert to memoryview for faster access
-                pixels = memoryview(scan_line).cast('I')  # 32-bit unsigned integers
-                
-                for x in range(width):
-                    pixel = pixels[x]
-                    # Extract RGB components (assuming little-endian BGRA format)
-                    blue = pixel & 0xFF
-                    green = (pixel >> 8) & 0xFF
-                    red = (pixel >> 16) & 0xFF
-                    alpha = (pixel >> 24) & 0xFF
-                    
-                    # Apply ITU-R BT.709 coefficients for perceptual luminance
-                    gray_value = int(0.2126 * red + 0.7152 * green + 0.0722 * blue)
-                    gray_value = min(255, max(0, gray_value))
-                    
-                    # Set pixel to grayscale (BGRA format)
-                    pixels[x] = (alpha << 24) | (gray_value << 16) | (gray_value << 8) | gray_value
-            
-            return grayscale_image
-        finally:
-            # Always restore cursor
-            if show_wait_cursor:
-                self.setCursor(Qt.ArrowCursor)
+        """Apply fast grayscale conversion using Qt's optimized built-in method."""
+        # Use Qt's fast built-in grayscale conversion - much faster than pixel-by-pixel
+        return image.convertToFormat(QImage.Format_Grayscale8).convertToFormat(QImage.Format_RGB32)
         
     def _update_zoom_display(self):
         """Update the display with current zoom level and pan offset using cached pixmap."""
@@ -598,6 +573,8 @@ class GlimpseViewer(QMainWindow):
             self.image_label.parentWidget().setStyleSheet("background-color: #3b7dd8; color: #fff; border-radius: 4px;")
         else:
             self.image_label.parentWidget().setStyleSheet("")
+        # Clear pending grayscale state
+        self._pending_grayscale_path = None
         self.display_image(self.current_image) if self.current_image else None
 
     def flip_horizontal(self):
@@ -659,7 +636,8 @@ class GlimpseViewer(QMainWindow):
             return
         self.timer_remaining -= 1
         if self.timer_remaining <= 0:
-            self.show_random_image()
+            # Use QTimer.singleShot to ensure image loading happens in main thread
+            QTimer.singleShot(0, self.show_random_image)
         else:
             self._update_progress()
 

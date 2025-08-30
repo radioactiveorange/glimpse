@@ -17,7 +17,7 @@ class CircularCountdown(QWidget):
         self.setFixedSize(QSize(24, 24))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
-        self._timer.start(16)  # ~60 FPS
+        # Don't start timer immediately - start only when needed
 
         self._last_update = time.monotonic()
 
@@ -29,6 +29,9 @@ class CircularCountdown(QWidget):
     def set_remaining_time(self, seconds):
         """Set the remaining countdown time."""
         self.remaining_time = float(max(0, min(self.total_time, seconds)))
+        # Start timer for smooth animation
+        if not self._timer.isActive():
+            self._timer.start(16)  # 60 FPS for smooth animation
         self.update()
 
     def _on_tick(self):
@@ -127,10 +130,9 @@ class MinimalProgressBar(QWidget):
         self.setFixedHeight(4)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
         
-        # Smooth animation timer
+        # Smooth animation timer - don't start immediately
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
-        self._timer.start(16)  # ~60 FPS
     
     def set_total_time(self, seconds):
         """Set the total countdown time."""
@@ -140,6 +142,9 @@ class MinimalProgressBar(QWidget):
     def set_remaining_time(self, seconds):
         """Set the remaining countdown time."""
         self.remaining_time = float(max(0, min(self.total_time, seconds)))
+        # Start timer for smooth animation
+        if not self._timer.isActive():
+            self._timer.start(16)  # 60 FPS for smooth animation
         self.update()
     
     def _on_tick(self):
