@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QHBoxLayout, QApplication
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QFont, QMovie
+from PySide6.QtGui import QFont
 import os
 from typing import List
 

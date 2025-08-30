@@ -54,6 +54,7 @@ The application is organized into a clean modular structure:
 - **Signal Architecture**: Clean signal/slot communication between startup and main window
   - Object-typed signals for complex data (tuples, custom objects)
   - Collection/folder signals emit tuples: `(data, timer_enabled, timer_interval)`
+- **Window Management**: All dialogs and windows automatically center on screen with multi-monitor support
 
 ### State Management
 - Image transformations (flip, grayscale) applied via QTransform
@@ -87,6 +88,7 @@ The application uses a comprehensive dark theme stylesheet (`DARK_STYLESHEET`) t
 - **Memory Management**: Cache processed pixmaps (`_cached_pixmap`) for smooth UI operations
 - **Async Loading**: Use LoadingDialog with QThread (ImageLoadingWorker) for large collections
 - **Threading**: Worker threads should emit progress signals and handle cancellation gracefully
+- **Dialog Centering**: All dialogs implement `center_on_screen()` and `showEvent()` override for consistent positioning
 
 ### Current Status (Phase 4 Complete)
 All major features have been implemented:
@@ -95,6 +97,8 @@ All major features have been implemented:
 - ✅ **Timer Configuration**: Flexible timer settings for any viewing session
 - ✅ **Professional UI**: Media-style controls with consistent icon design
 - ✅ **Smart Panning**: Intelligent constraints based on image and zoom state
+- ✅ **Performance Optimization**: Async loading prevents UI freezing during large collection creation
+- ✅ **Window Management**: All windows and dialogs properly centered with multi-monitor support
 
 ### Maintenance Notes
 - **Timer Consistency**: Play/pause/stop buttons synchronized with context menu
@@ -103,6 +107,8 @@ All major features have been implemented:
 - **Startup Flow**: Application uses startup dialog pattern - main window only shows after selection
 - **Widget Hierarchy**: GlimpseViewer (main) ← StartupDialog → Collection/Folder selection
 - **Loading Performance**: LoadingDialog prevents UI freezing for large collections (72K+ images tested)
+- **Collection Creation**: Async image counting during collection creation prevents freezing
 - **Thread Safety**: Worker threads properly stopped in dialog closeEvent to prevent crashes
+- **Dialog Positioning**: All dialogs use `availableGeometry()` and `frameGeometry()` for accurate centering
 
 When making changes, preserve the existing dark theme aesthetic and ensure cross-platform compatibility (Windows, macOS, Linux).

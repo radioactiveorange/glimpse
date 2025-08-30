@@ -6,8 +6,8 @@ from PySide6.QtWidgets import (
     QListWidgetItem, QFileDialog, QInputDialog, QMessageBox, QWidget,
     QSplitter, QTextEdit, QGroupBox, QSizePolicy, QApplication
 )
-from PySide6.QtGui import QFont, QIcon, QPixmap
-from PySide6.QtCore import Qt, QSize, Signal, QTimer
+from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, Signal, QTimer
 
 from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
