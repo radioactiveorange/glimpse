@@ -126,12 +126,12 @@ class StartupDialog(QDialog):
         self.new_collection_btn.clicked.connect(self.create_new_collection)
         collection_buttons_layout.addWidget(self.new_collection_btn)
         
-        self.edit_collection_btn = create_standard_button("Edit")
+        self.edit_collection_btn = create_standard_button("Edit", "edit")
         self.edit_collection_btn.setEnabled(False)
         self.edit_collection_btn.clicked.connect(self.edit_selected_collection)
         collection_buttons_layout.addWidget(self.edit_collection_btn)
         
-        self.delete_collection_btn = create_standard_button("Delete")
+        self.delete_collection_btn = create_standard_button("Delete", "delete")
         self.delete_collection_btn.setEnabled(False)
         self.delete_collection_btn.clicked.connect(self.delete_selected_collection)
         collection_buttons_layout.addWidget(self.delete_collection_btn)
@@ -181,7 +181,7 @@ class StartupDialog(QDialog):
         bottom_layout.setContentsMargins(0, 8, 0, 0)
         bottom_layout.addStretch()
         
-        self.open_collection_btn = create_dialog_action_button("Open Collection", primary=True)
+        self.open_collection_btn = create_dialog_action_button("Open Collection", primary=True, icon_name="play")
         self.open_collection_btn.setEnabled(False)
         self.open_collection_btn.clicked.connect(self.open_selected_collection)
         bottom_layout.addWidget(self.open_collection_btn)
