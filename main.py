@@ -21,7 +21,7 @@ def main():
         # Running as script
         app_dir = os.path.dirname(os.path.abspath(__file__))
     
-    icon_path = os.path.join(app_dir, "app_icon.png")
+    icon_path = os.path.join(app_dir, "app_icon.ico")
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
@@ -39,6 +39,7 @@ def main():
         viewer = GlimpseViewer()
         viewer.load_collection(collection, timer_enabled, timer_interval)
         viewer.show()
+        viewer.center_on_screen()  # Explicitly center after show
     
     def on_folder_selected(data):
         nonlocal viewer
@@ -48,6 +49,7 @@ def main():
         viewer = GlimpseViewer()
         viewer.load_folder(folder, timer_enabled, timer_interval)
         viewer.show()
+        viewer.center_on_screen()  # Explicitly center after show
     
     startup.collection_selected.connect(on_collection_selected)
     startup.folder_selected.connect(on_folder_selected)

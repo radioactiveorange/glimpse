@@ -7,13 +7,14 @@ import subprocess
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QWidget,
     QListWidget, QListWidgetItem, QSplitter, QSizePolicy,
-    QMenu, QInputDialog, QDialog
+    QMenu, QInputDialog, QDialog, QApplication
 )
 from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
 from PySide6.QtCore import Qt, QTimer, QSize, QSettings
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
 from .startup_dialog import StartupDialog
+from .loading_dialog import LoadingDialog
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
 
@@ -61,6 +62,26 @@ class GlimpseViewer(QMainWindow):
         
         self.init_ui()
         self._initial_image_shown = False
+    
+    def center_on_screen(self):
+        """Center the window on the screen."""
+        screen = QApplication.primaryScreen().availableGeometry()
+        window = self.frameGeometry()
+        x = (screen.width() - window.width()) // 2 + screen.x()
+        y = (screen.height() - window.height()) // 2 + screen.y()
+        self.move(x, y)
+    
+    def showEvent(self, event):
+        """Override showEvent to center window when first shown."""
+        super().showEvent(event)
+        if not hasattr(self, '_centered'):
+            # Use QTimer to center after window is fully shown
+            QTimer.singleShot(0, self._delayed_center)
+            self._centered = True
+    
+    def _delayed_center(self):
+        """Center window after it's fully displayed."""
+        self.center_on_screen()
 
     def init_ui(self):
         """Initialize the user interface."""
@@ -887,8 +908,12 @@ class GlimpseViewer(QMainWindow):
         self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
         self.settings.setValue("timer_interval", self.timer_interval)
         
-        # Get all images from collection
-        self.images = collection.get_all_images()
+        # Show loading dialog for large collections
+        loading_dialog = LoadingDialog(collection.paths, self)
+        if loading_dialog.exec() == QDialog.Accepted:
+            self.images = loading_dialog.get_images()
+        else:
+            self.images = []  # User cancelled loading
         
         # Clear history
         self.history.clear()
@@ -927,8 +952,12 @@ class GlimpseViewer(QMainWindow):
         # Save as last folder for quick access
         self.settings.setValue("last_folder", folder_path)
         
-        # Get images
-        self.images = get_images_in_folder(folder_path)
+        # Show loading dialog for large folders
+        loading_dialog = LoadingDialog([folder_path], self)
+        if loading_dialog.exec() == QDialog.Accepted:
+            self.images = loading_dialog.get_images()
+        else:
+            self.images = []  # User cancelled loading
         
         # Clear history
         self.history.clear()

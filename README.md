@@ -56,7 +56,7 @@ uv run main.py
 uv pip install pyinstaller
 
 # Build standalone executable
-pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png main.py
+pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico main.py
 
 # Find your executable in the dist/ folder
 ```

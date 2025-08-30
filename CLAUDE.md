@@ -18,10 +18,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building Executable
 - Install PyInstaller: `uv pip install pyinstaller`
-- Build standalone executable with custom icon: `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png --name=glimpse main.py`
+- Build using existing spec file: `pyinstaller glimpse.spec`
+- Manual build with custom icon: `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py`
 - Build without icon (fallback): `pyinstaller --noconfirm --onefile --windowed main.py`
 - Output binary will be in the `dist/` folder
-- **Note**: The custom app icon (`app_icon.png`) replaces the default Python icon
+- **Note**: Uses `app_icon.ico` for Windows builds, `app_icon.png` for other platforms
 
 ## Architecture
 
@@ -32,6 +33,7 @@ The application is organized into a clean modular structure:
 - **`src/ui/`**: User interface components
   - `main_window.py`: Main application window (GlimpseViewer class)
   - `startup_dialog.py`: Professional startup screen for collection management
+  - `loading_dialog.py`: Async loading dialog with progress indication for large collections
   - `timer_dialog.py`: Timer configuration dialog for collections/folders
   - `widgets.py`: Custom widgets (ClickableLabel, MinimalProgressBar, ButtonOverlay)
   - `styles.py`: Dark theme stylesheet constants
@@ -47,8 +49,11 @@ The application is organized into a clean modular structure:
 - **History System**: List-based navigation with thumbnail panel (QListWidget)
 - **Timer System**: QTimer-based auto-advance with media-style controls (play/pause/stop)
 - **Professional UI**: Button overlays with consistent geometric icons
+- **Loading System**: Asynchronous image loading with progress dialog for large collections (72K+ images)
 - **Settings Persistence**: QSettings with cross-platform data directory support
 - **Signal Architecture**: Clean signal/slot communication between startup and main window
+  - Object-typed signals for complex data (tuples, custom objects)
+  - Collection/folder signals emit tuples: `(data, timer_enabled, timer_interval)`
 
 ### State Management
 - Image transformations (flip, grayscale) applied via QTransform
@@ -76,8 +81,12 @@ The application uses a comprehensive dark theme stylesheet (`DARK_STYLESHEET`) t
 ### Code Patterns
 - **Qt Signal Architecture**: Use object-typed signals for complex data (tuples, custom objects)
 - **Error Handling**: Implement graceful fallbacks for cancelled dialogs and invalid data
-- **Icon System**: All icons created via `create_professional_icon()` with consistent sizing
+- **Icon System**: All icons created via `create_professional_icon()` with consistent sizing (16x16)
 - **Settings Management**: Use QSettings with proper cross-platform paths
+- **Image Loading**: Always use QPixmap with error handling for unsupported formats
+- **Memory Management**: Cache processed pixmaps (`_cached_pixmap`) for smooth UI operations
+- **Async Loading**: Use LoadingDialog with QThread (ImageLoadingWorker) for large collections
+- **Threading**: Worker threads should emit progress signals and handle cancellation gracefully
 
 ### Current Status (Phase 4 Complete)
 All major features have been implemented:
@@ -89,8 +98,11 @@ All major features have been implemented:
 
 ### Maintenance Notes
 - **Timer Consistency**: Play/pause/stop buttons synchronized with context menu
-- **Signal Types**: Collection and folder signals emit tuples: (data, timer_enabled, timer_interval)
-- **Panning Logic**: Allows repositioning when image is off-center, regardless of zoom
-- **Collections Storage**: JSON files in platform-appropriate user data directories
+- **Panning Logic**: Intelligent constraints - allows repositioning when image is off-center, regardless of zoom
+- **Collections Storage**: JSON files in platform-appropriate user data directories via QStandardPaths
+- **Startup Flow**: Application uses startup dialog pattern - main window only shows after selection
+- **Widget Hierarchy**: GlimpseViewer (main) ← StartupDialog → Collection/Folder selection
+- **Loading Performance**: LoadingDialog prevents UI freezing for large collections (72K+ images tested)
+- **Thread Safety**: Worker threads properly stopped in dialog closeEvent to prevent crashes
 
 When making changes, preserve the existing dark theme aesthetic and ensure cross-platform compatibility (Windows, macOS, Linux).

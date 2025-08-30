@@ -2,9 +2,9 @@
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QRadioButton, QSpinBox, QButtonGroup, QGroupBox
+    QRadioButton, QSpinBox, QButtonGroup, QGroupBox, QApplication
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 
 
 class TimerConfigDialog(QDialog):
@@ -20,6 +20,19 @@ class TimerConfigDialog(QDialog):
         self.timer_interval = 60  # Default 60 seconds
         
         self.init_ui()
+    
+    def center_on_screen(self):
+        """Center the dialog on the screen."""
+        screen = QApplication.primaryScreen().availableGeometry()
+        dialog = self.frameGeometry()
+        x = (screen.width() - dialog.width()) // 2 + screen.x()
+        y = (screen.height() - dialog.height()) // 2 + screen.y()
+        self.move(x, y)
+    
+    def showEvent(self, event):
+        """Override showEvent to center dialog when shown."""
+        super().showEvent(event)
+        QTimer.singleShot(0, self.center_on_screen)
     
     def init_ui(self):
         """Initialize the user interface."""

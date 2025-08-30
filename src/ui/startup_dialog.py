@@ -4,14 +4,15 @@ import os
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, 
     QListWidgetItem, QFileDialog, QInputDialog, QMessageBox, QWidget,
-    QSplitter, QTextEdit, QGroupBox, QSizePolicy
+    QSplitter, QTextEdit, QGroupBox, QSizePolicy, QApplication
 )
 from PySide6.QtGui import QFont, QIcon, QPixmap
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import Qt, QSize, Signal, QTimer
 
 from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
 from .timer_dialog import TimerConfigDialog
+from .loading_dialog import LoadingDialog
 
 
 class StartupDialog(QDialog):
@@ -30,6 +31,19 @@ class StartupDialog(QDialog):
         
         self.init_ui()
         self.refresh_collections()
+    
+    def center_on_screen(self):
+        """Center the dialog on the screen."""
+        screen = QApplication.primaryScreen().availableGeometry()
+        dialog = self.frameGeometry()
+        x = (screen.width() - dialog.width()) // 2 + screen.x()
+        y = (screen.height() - dialog.height()) // 2 + screen.y()
+        self.move(x, y)
+    
+    def showEvent(self, event):
+        """Override showEvent to center dialog when shown."""
+        super().showEvent(event)
+        QTimer.singleShot(0, self.center_on_screen)
     
     def init_ui(self):
         """Initialize the user interface."""
@@ -263,19 +277,37 @@ class StartupDialog(QDialog):
             else:
                 break
         
-        # Create collection
-        collection = self.collection_manager.create_collection(name, folders)
-        if collection:
-            self.refresh_collections()
-            # Select the new collection
-            for i in range(self.collections_list.count()):
-                item = self.collections_list.item(i)
-                if item.data(Qt.UserRole) and item.data(Qt.UserRole).name == name:
-                    self.collections_list.setCurrentItem(item)
-                    self.on_collection_selected(item)
-                    break
-        else:
-            QMessageBox.critical(self, "Error", "Failed to create collection.")
+        # Create collection with loading dialog for large collections
+        self._create_collection_with_loading(name, folders)
+    
+    def _create_collection_with_loading(self, name: str, folders: list):
+        """Create collection with loading dialog for progress indication."""
+        # First create the collection without image count
+        if self.collection_manager.collection_exists(name):
+            QMessageBox.critical(self, "Error", "Collection already exists.")
+            return
+        
+        # Show loading dialog for image counting
+        loading_dialog = LoadingDialog(folders, self)
+        
+        if loading_dialog.exec() == QDialog.Accepted:
+            # Get the loaded images and create collection
+            images = loading_dialog.get_images()
+            collection = Collection(name, folders)
+            collection.image_count = len(images)
+            
+            if self.collection_manager.save_collection(collection):
+                self.refresh_collections()
+                # Select the new collection
+                for i in range(self.collections_list.count()):
+                    item = self.collections_list.item(i)
+                    if item.data(Qt.UserRole) and item.data(Qt.UserRole).name == name:
+                        self.collections_list.setCurrentItem(item)
+                        self.on_collection_selected(item)
+                        break
+            else:
+                QMessageBox.critical(self, "Error", "Failed to create collection.")
+        # If dialog was cancelled, just return without creating collection
     
     def edit_selected_collection(self):
         """Edit the selected collection."""
