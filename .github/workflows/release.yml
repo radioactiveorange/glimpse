@@ -35,7 +35,7 @@ jobs:
 
       - name: Install semantic-release
         run: |
-          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github conventional-changelog-conventionalcommits
 
       - name: Run semantic-release
         id: semantic
@@ -92,8 +92,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            qt6-base-dev \
-            libegl1-mesa \
+            libegl1-mesa-dev \
+            libgl1-mesa-dev \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render-util0 \
+            libxcb-xkb1 \
             libxkbcommon-x11-0 \
             xvfb
 
