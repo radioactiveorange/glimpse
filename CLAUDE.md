@@ -18,11 +18,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Building Executable
 - Install PyInstaller: `uv pip install pyinstaller`
-- Build using existing spec file: `pyinstaller glimpse.spec`
-- Manual build with custom icon: `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py`
-- Build without icon (fallback): `pyinstaller --noconfirm --onefile --windowed main.py`
+- **Recommended**: Build using spec file: `pyinstaller glimpse.spec`
+- Manual build (Windows): `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py`
+- Manual build (Linux/macOS): `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png --name=glimpse main.py`
 - Output binary will be in the `dist/` folder
-- **Note**: Uses `app_icon.ico` for Windows builds, `app_icon.png` for other platforms
+- **Cross-platform icons**: Spec file bundles both PNG and ICO, runtime selects appropriate format
 
 ## Architecture
 

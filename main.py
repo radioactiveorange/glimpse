@@ -21,7 +21,12 @@ def main():
         # Running as script
         app_dir = os.path.dirname(os.path.abspath(__file__))
     
-    icon_path = os.path.join(app_dir, "app_icon.ico")
+    # Use platform-appropriate icon format
+    if sys.platform.startswith('win'):
+        icon_path = os.path.join(app_dir, "app_icon.ico")
+    else:
+        icon_path = os.path.join(app_dir, "app_icon.png")
+    
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
     
