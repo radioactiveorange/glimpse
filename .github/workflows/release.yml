@@ -92,15 +92,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libegl1-mesa-dev \
-            libxcb1-dev \
-            libxcb-keysyms1-dev \
-            libxcb-util1-dev \
-            libxcb-icccm4-dev \
-            libxcb-image0-dev \
-            libxcb-render-util0-dev \
-            libxcb-randr0-dev \
-            libxcb-xinerama0-dev \
+            qt6-base-dev \
+            libegl1-mesa \
             libxkbcommon-x11-0 \
             xvfb
 
