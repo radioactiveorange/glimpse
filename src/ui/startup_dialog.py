@@ -14,7 +14,7 @@ from ..core.image_utils import create_professional_icon
 from .timer_dialog import TimerConfigDialog
 from .loading_dialog import LoadingDialog
 from .styles import create_standard_button, create_dialog_action_button
-
+from ..version import get_version
 
 class StartupDialog(QDialog):
     """Startup dialog for managing collections and quick folder access."""
@@ -26,7 +26,7 @@ class StartupDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.collection_manager = CollectionManager()
-        self.setWindowTitle("Glimpse - Welcome")
+        self.setWindowTitle(f"Glimpse v{get_version()}")
         self.setModal(True)
         self.resize(800, 600)
         
