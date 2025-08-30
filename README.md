@@ -37,14 +37,35 @@ A cross-platform desktop application for viewing random images from folders or c
 
 ### Installation
 
+**Prerequisites:**
+- Python 3.13+
+- [uv](https://docs.astral.sh/uv/) (fast Python package manager) - Install with: `pip install uv`
+
 **Option 1: Run from Source**
 ```bash
 # Clone the repository
 git clone https://github.com/radioactiveorange/glimpse.git
 cd glimpse
 
-# Install dependencies with uv (recommended)
-uv pip install pyside6
+# Create and activate virtual environment with uv (recommended)
+uv venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+uv pip install -e .
+
+# Run the application
+uv run main.py
+```
+
+**Alternative with uv (no manual venv activation needed):**
+```bash
+# Clone the repository
+git clone https://github.com/radioactiveorange/glimpse.git
+cd glimpse
+
+# Install dependencies (uv handles venv automatically)
+uv pip install -e .
 
 # Run the application
 uv run main.py
@@ -52,11 +73,11 @@ uv run main.py
 
 **Option 2: Build Executable**
 ```bash
-# Install PyInstaller
-uv pip install pyinstaller
+# Install build dependencies
+uv pip install -e ".[build]"
 
 # Build standalone executable
-pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico main.py
+pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py
 
 # Find your executable in the dist/ folder
 ```

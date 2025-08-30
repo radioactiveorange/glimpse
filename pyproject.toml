@@ -1,9 +1,21 @@
 [project]
-name = "random-image-viewer"
-version = "0.1.0"
-description = "Add your description here"
+name = "glimpse"
+version = "1.0.0"
+description = "Cross-platform desktop application for viewing random images from collections"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "pyside6>=6.9.1",
 ]
+
+[project.optional-dependencies]
+build = [
+    "pyinstaller>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/radioactiveorange/glimpse"
+Repository = "https://github.com/radioactiveorange/glimpse"
+
+[project.scripts]
+glimpse = "main:main"
