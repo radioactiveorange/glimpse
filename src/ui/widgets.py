@@ -71,6 +71,7 @@ class ClickableLabel(QLabel):
     pan_start = Signal(object)  # Signal for starting pan (QPoint)
     pan_move = Signal(object)   # Signal for pan movement (QPoint)
     pan_end = Signal()          # Signal for ending pan
+    mouse_moved = Signal()      # Signal for mouse movement to show controls
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -95,7 +96,10 @@ class ClickableLabel(QLabel):
         super().mousePressEvent(event)
     
     def mouseMoveEvent(self, event):
-        """Handle mouse move events for panning."""
+        """Handle mouse move events for panning and show controls."""
+        # Emit signal for showing controls on mouse movement
+        self.mouse_moved.emit()
+        
         if self._is_panning and self._last_pan_point:
             delta = event.pos() - self._last_pan_point
             self.pan_move.emit(delta)
@@ -212,6 +216,16 @@ class ButtonOverlay(QWidget):
         self.setAttribute(Qt.WA_StyledBackground)
         self.setFixedSize(280, 50)  # Wider to accommodate zoom buttons
         
+        # Auto-hide functionality
+        self._hide_timer = QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.timeout.connect(self._auto_hide)
+        self._hide_delay = 3000  # 3 seconds
+        self._is_auto_hiding = False
+        
+        # Enable mouse tracking
+        self.setMouseTracking(True)
+        
         # Initially semi-transparent
         self.base_opacity = 0.3
         self.hover_opacity = 0.8
@@ -303,3 +317,38 @@ class ButtonOverlay(QWidget):
         # Use same opacity as other icons
         icon_color = f"rgba(255, 255, 255, {int(self.icon_base_opacity * 255)})"
         self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size, icon_color))
+    
+    def show(self):
+        """Override show to start auto-hide timer."""
+        super().show()
+        self._start_auto_hide_timer()
+    
+    def enterEvent(self, event):
+        """Show controls when mouse enters the overlay."""
+        super().enterEvent(event)
+        self._show_controls()
+        
+    def leaveEvent(self, event):
+        """Start auto-hide timer when mouse leaves the overlay."""
+        super().leaveEvent(event)
+        self._start_auto_hide_timer()
+    
+    def _show_controls(self):
+        """Show the controls and cancel auto-hide."""
+        self._hide_timer.stop()
+        self._is_auto_hiding = False
+        if self.isHidden():
+            super().show()  # Use super().show() to avoid triggering auto-hide timer
+        # Restart the auto-hide timer
+        self._start_auto_hide_timer()
+    
+    def _start_auto_hide_timer(self):
+        """Start or restart the auto-hide timer."""
+        if not self._is_auto_hiding:
+            self._hide_timer.stop()
+            self._hide_timer.start(self._hide_delay)
+    
+    def _auto_hide(self):
+        """Hide the controls automatically."""
+        self._is_auto_hiding = True
+        self.hide()

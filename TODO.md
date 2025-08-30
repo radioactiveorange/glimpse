@@ -1,8 +1,7 @@
 ## Build and releasing
+- [x] update keyboard shortcuts; add more if needed
+- [x] update screenshots with all the new UI
 - [ ] setup github pipelines so we can create builds and releases and versioning and changelog. make it all automatic using semantic versioning. we need to build for windows, linux and mac if possible.
-- [ ] update screenshots with all the new UI
-- [ ] update keyboard shortcuts; add more if needed
-
 
 ## Phase 1: Foundation & Code Quality
 - [x] Refactor the main.py and make it modular - easier to maintain

@@ -151,7 +151,7 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 ### Welcome Screen & Collections
 ![Welcome Screen](screenshots/welcome-screen.png)
 
-### Main Interface
+### Main Viewer
 ![Main Viewer](screenshots/main-viewer.png)
 
 ### Media Controls

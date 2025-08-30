@@ -109,6 +109,7 @@ class GlimpseViewer(QMainWindow):
         self.image_label.pan_start.connect(self.start_panning)
         self.image_label.pan_move.connect(self.handle_panning)
         self.image_label.pan_end.connect(self.end_panning)
+        self.image_label.mouse_moved.connect(self.show_controls)
         
         # Set up context menu
         self.image_label.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -163,6 +164,8 @@ class GlimpseViewer(QMainWindow):
             self.show_previous_image()
         elif event.key() == Qt.Key_Right:
             self.show_next_image()
+        elif event.key() == Qt.Key_Space:
+            self.toggle_pause()
         elif event.modifiers() & Qt.ControlModifier:
             if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
                 self.zoom_in()
@@ -875,6 +878,11 @@ class GlimpseViewer(QMainWindow):
         self.pan_offset_x = 0
         self.pan_offset_y = 0
         self._update_zoom_display()
+    
+    def show_controls(self):
+        """Show the button overlay controls on mouse movement."""
+        if self.current_image:
+            self.button_overlay._show_controls()
     
     def load_collection(self, collection: Collection, timer_enabled: bool = False, timer_interval: int = 60):
         """Load images from a collection with timer settings."""
