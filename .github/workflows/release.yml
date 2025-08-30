@@ -42,9 +42,25 @@ jobs:
         run: |
           npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github conventional-changelog-conventionalcommits
 
-      - name: Run semantic-release
+      - name: Get next version
         id: semantic
-        run: semantic-release
+        run: |
+          # Run semantic-release in dry-run mode to get the next version
+          OUTPUT=$(semantic-release --dry-run)
+          echo "$OUTPUT"
+          
+          # Extract version from output
+          VERSION=$(echo "$OUTPUT" | grep -oP 'The next release version is \K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+          
+          if [ -n "$VERSION" ]; then
+            echo "new-release-published=true" >> $GITHUB_OUTPUT
+            echo "new-release-version=$VERSION" >> $GITHUB_OUTPUT
+            echo "new-release-git-tag=v$VERSION" >> $GITHUB_OUTPUT
+            echo "Found new version: $VERSION"
+          else
+            echo "new-release-published=false" >> $GITHUB_OUTPUT
+            echo "No new version needed"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -128,13 +144,21 @@ jobs:
       - name: Create archive (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          powershell -command "Compress-Archive -Path dist/glimpse.exe -DestinationPath glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows.zip"
+          powershell -command "Compress-Archive -Path dist/glimpse.exe -DestinationPath glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-x64.zip"
 
-      - name: Create archive (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Create archive (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           cd dist
-          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-${{ matrix.name }}.tar.gz glimpse
+          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-x64.tar.gz glimpse
+          cd ..
+
+      - name: Create archive (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd dist
+          # Create a simple tar.gz for macOS
+          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-x64.tar.gz glimpse
           cd ..
 
       - name: Upload artifacts
@@ -145,7 +169,7 @@ jobs:
             glimpse-*.zip
             glimpse-*.tar.gz
 
-  # Create GitHub release with all artifacts
+  # Create the actual release with binaries
   release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -154,6 +178,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.DEPLOY_KEY }}
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github conventional-changelog-conventionalcommits
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -163,14 +204,25 @@ jobs:
       - name: Display structure of downloaded files
         run: ls -R ./artifacts
 
-      - name: Upload release assets
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find ./artifacts -name "*.zip" -o -name "*.tar.gz" | xargs -I {} cp {} release-assets/
+          ls -la release-assets/
+
+      - name: Create version file for semantic-release
+        run: |
+          echo "VERSION = '${{ needs.semantic-release.outputs.new-release-version }}'" > src/version.py
+
+      - name: Run semantic-release (full release)
+        run: semantic-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload release assets to GitHub release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ needs.semantic-release.outputs.new-release-git-tag }}
-          name: Release ${{ needs.semantic-release.outputs.new-release-version }}
-          files: |
-            ./artifacts/**/*.zip
-            ./artifacts/**/*.tar.gz
-          generate_release_notes: true
+          files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
