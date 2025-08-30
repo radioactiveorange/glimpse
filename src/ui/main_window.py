@@ -650,7 +650,7 @@ class GlimpseViewer(QMainWindow):
         """Show the right-click context menu."""
         menu = QMenu(self)
         
-        # --- Navigation Controls ---
+        # --- Navigation ---
         prev_action = QAction("Previous", self)
         prev_action.triggered.connect(self.show_previous_image)
         prev_action.setEnabled(self.history_index > 0)
@@ -659,20 +659,16 @@ class GlimpseViewer(QMainWindow):
         next_action = QAction("Next", self)
         next_action.triggered.connect(self.show_next_or_random_image)
         menu.addAction(next_action)
-        
-        random_action = QAction("Random Image", self)
-        random_action.triggered.connect(self.show_random_image)
-        menu.addAction(random_action)
         menu.addSeparator()
         
-        # --- Media Controls ---
+        # --- Timer Controls ---
         if self._auto_advance_active:
             if self._timer_paused:
-                play_action = QAction("Play", self)
+                play_action = QAction("Play Timer", self)
                 play_action.triggered.connect(self.toggle_pause)
                 menu.addAction(play_action)
             else:
-                pause_action = QAction("Pause", self)
+                pause_action = QAction("Pause Timer", self)
                 pause_action.triggered.connect(self.toggle_pause)
                 menu.addAction(pause_action)
         else:
@@ -684,76 +680,45 @@ class GlimpseViewer(QMainWindow):
         stop_action.triggered.connect(self.stop_timer)
         stop_action.setEnabled(self._auto_advance_active)
         menu.addAction(stop_action)
-        menu.addSeparator()
         
-        # --- File Actions ---
-        open_explorer_action = QAction("Open in Explorer", self)
-        open_explorer_action.triggered.connect(self.open_current_in_explorer)
-        open_explorer_action.setEnabled(self.current_image is not None)
-        menu.addAction(open_explorer_action)
-        
-        # --- Source Selection ---
-        welcome_action = QAction("Switch Collection/Folder...", self)
-        welcome_action.triggered.connect(self.show_welcome_dialog)
-        menu.addAction(welcome_action)
-        menu.addSeparator()
-        
-        # --- Zoom actions ---
-        zoom_in_action = QAction("Zoom In", self)
-        zoom_in_action.setShortcut("Ctrl++")
-        zoom_in_action.triggered.connect(self.zoom_in)
-        menu.addAction(zoom_in_action)
-        
-        zoom_out_action = QAction("Zoom Out", self)
-        zoom_out_action.setShortcut("Ctrl+-")
-        zoom_out_action.triggered.connect(self.zoom_out)
-        menu.addAction(zoom_out_action)
-        
-        reset_zoom_action = QAction("Reset Zoom", self)
-        reset_zoom_action.setShortcut("Ctrl+0")
-        reset_zoom_action.triggered.connect(self.reset_zoom)
-        menu.addAction(reset_zoom_action)
-        
-        reset_pan_action = QAction("Reset Pan Position", self)
-        reset_pan_action.triggered.connect(self.reset_pan)
-        reset_pan_action.setEnabled(self.zoom_factor > 1.0)  # Only enable when zoomed
-        menu.addAction(reset_pan_action)
-        menu.addSeparator()
-        
-        # --- Timer Settings ---
+        # Timer interval submenu
         timer_menu = QMenu("Timer Interval", self)
-        for label, value in [("30s", 30), ("60s", 60), ("5m", 300), ("10m", 600)]:
+        for label, value in [("30s", 30), ("1m", 60), ("2m", 120), ("5m", 300), ("10m", 600)]:
             act = QAction(label, self)
             act.setCheckable(True)
             act.setChecked(self.timer_interval == value)
             act.triggered.connect(lambda checked, v=value: self.set_timer_interval(v))
             timer_menu.addAction(act)
+        timer_menu.addSeparator()
         custom_act = QAction("Custom...", self)
         custom_act.triggered.connect(self.set_custom_timer_interval)
         timer_menu.addAction(custom_act)
         menu.addMenu(timer_menu)
         menu.addSeparator()
         
-        # --- Settings ---
-        grayscale_action = QAction("Grayscale", self)
-        grayscale_action.setCheckable(True)
-        grayscale_action.setChecked(self.settings.value("grayscale_enabled", False, type=bool))
-        grayscale_action.toggled.connect(self.toggle_grayscale)
-        menu.addAction(grayscale_action)
+        # --- View Controls ---
+        zoom_menu = QMenu("Zoom", self)
         
-        flip_h_action = QAction("Flip Horizontal", self)
-        flip_h_action.triggered.connect(self.flip_horizontal)
-        menu.addAction(flip_h_action)
+        zoom_in_action = QAction("Zoom In", self)
+        zoom_in_action.setShortcut("Ctrl++")
+        zoom_in_action.triggered.connect(self.zoom_in)
+        zoom_menu.addAction(zoom_in_action)
         
-        flip_v_action = QAction("Flip Vertical", self)
-        flip_v_action.triggered.connect(self.flip_vertical)
-        menu.addAction(flip_v_action)
+        zoom_out_action = QAction("Zoom Out", self)
+        zoom_out_action.setShortcut("Ctrl+-")
+        zoom_out_action.triggered.connect(self.zoom_out)
+        zoom_menu.addAction(zoom_out_action)
         
-        history_action = QAction("Show History Panel", self)
-        history_action.setCheckable(True)
-        history_action.setChecked(self.settings.value("show_history_panel", False, type=bool))
-        history_action.toggled.connect(self.toggle_history_panel)
-        menu.addAction(history_action)
+        reset_zoom_action = QAction("Reset Zoom", self)
+        reset_zoom_action.setShortcut("Ctrl+0")
+        reset_zoom_action.triggered.connect(self.reset_zoom)
+        zoom_menu.addAction(reset_zoom_action)
+        
+        reset_pan_action = QAction("Reset Pan Position", self)
+        reset_pan_action.triggered.connect(self.reset_pan)
+        reset_pan_action.setEnabled(self.zoom_factor > 1.0)  # Only enable when zoomed
+        zoom_menu.addAction(reset_pan_action)
+        menu.addMenu(zoom_menu)
         
         # Background color submenu
         bg_menu = QMenu("Background Color", self)
@@ -765,6 +730,42 @@ class GlimpseViewer(QMainWindow):
             act.triggered.connect(lambda checked, m=mode: self.change_bg_mode(m))
             bg_menu.addAction(act)
         menu.addMenu(bg_menu)
+        
+        history_action = QAction("Show History Panel", self)
+        history_action.setCheckable(True)
+        history_action.setChecked(self.settings.value("show_history_panel", False, type=bool))
+        history_action.toggled.connect(self.toggle_history_panel)
+        menu.addAction(history_action)
+        menu.addSeparator()
+        
+        # --- Image Transform ---
+        transform_menu = QMenu("Transform", self)
+        
+        grayscale_action = QAction("Grayscale", self)
+        grayscale_action.setCheckable(True)
+        grayscale_action.setChecked(self.settings.value("grayscale_enabled", False, type=bool))
+        grayscale_action.toggled.connect(self.toggle_grayscale)
+        transform_menu.addAction(grayscale_action)
+        
+        flip_h_action = QAction("Flip Horizontal", self)
+        flip_h_action.triggered.connect(self.flip_horizontal)
+        transform_menu.addAction(flip_h_action)
+        
+        flip_v_action = QAction("Flip Vertical", self)
+        flip_v_action.triggered.connect(self.flip_vertical)
+        transform_menu.addAction(flip_v_action)
+        menu.addMenu(transform_menu)
+        menu.addSeparator()
+        
+        # --- File Actions ---
+        open_explorer_action = QAction("Open in File Explorer", self)
+        open_explorer_action.triggered.connect(self.open_current_in_explorer)
+        open_explorer_action.setEnabled(self.current_image is not None)
+        menu.addAction(open_explorer_action)
+        
+        welcome_action = QAction("Switch Collection/Folder...", self)
+        welcome_action.triggered.connect(self.show_welcome_dialog)
+        menu.addAction(welcome_action)
         
         menu.exec(self.image_label.mapToGlobal(pos))
 
