@@ -87,6 +87,12 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
           echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1-mesa libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 xvfb
+
       - name: Install dependencies
         run: |
           uv pip install --system pyinstaller pyside6
@@ -96,7 +102,13 @@ jobs:
         run: |
           echo "VERSION = '${{ needs.semantic-release.outputs.new-release-version }}'" > src/version.py
 
-      - name: Build executable
+      - name: Build executable (Linux with virtual display)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          xvfb-run -a pyinstaller glimpse.spec
+
+      - name: Build executable (Windows/macOS)
+        if: matrix.os != 'ubuntu-latest'
         run: |
           pyinstaller glimpse.spec
 
