@@ -1,5 +1,7 @@
 ## Build and releasing
 - [ ] setup github pipelines so we can create builds and releases and versioning and changelog. make it all automatic using semantic versioning. we need to build for windows, linux and mac if possible.
+- [ ] update screenshots with all the new UI
+- [ ] update keyboard shortcuts; add more if needed
 
 
 ## Phase 1: Foundation & Code Quality
