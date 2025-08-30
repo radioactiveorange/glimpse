@@ -1,3 +1,7 @@
+## Build and releasing
+- [ ] setup github pipelines so we can create builds and releases and versioning and changelog. make it all automatic using semantic versioning. we need to build for windows, linux and mac if possible.
+
+
 ## Phase 1: Foundation & Code Quality
 - [x] Refactor the main.py and make it modular - easier to maintain
 - [x] Remove on-click proceed (simple cleanup)
