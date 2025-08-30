@@ -41,6 +41,7 @@ The application is organized into a clean modular structure:
   - `image_utils.py`: Image processing utilities and professional icon creation
   - `collections.py`: Collection management system with JSON storage
 - **`app_icon.png`**: Custom application icon for built executables
+- **`icons/`**: SVG icon collection for UI elements
 
 ### Key Features Implementation
 - **Startup System**: Professional dialog with collection management and timer configuration
@@ -82,7 +83,7 @@ The application uses a comprehensive dark theme stylesheet (`DARK_STYLESHEET`) t
 ### Code Patterns
 - **Qt Signal Architecture**: Use object-typed signals for complex data (tuples, custom objects)
 - **Error Handling**: Implement graceful fallbacks for cancelled dialogs and invalid data
-- **Icon System**: All icons created via `create_professional_icon()` with consistent sizing (16x16)
+- **Icon System**: SVG-based icons with fallback to coded icons via `create_professional_icon()` with consistent sizing (16x16)
 - **Settings Management**: Use QSettings with proper cross-platform paths
 - **Image Loading**: Always use QPixmap with error handling for unsupported formats
 - **Memory Management**: Cache processed pixmaps (`_cached_pixmap`) for smooth UI operations

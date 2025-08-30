@@ -251,24 +251,26 @@ class ButtonOverlay(QWidget):
         
         # Create buttons with professional geometric icons (all same size)
         icon_size = 18  # Consistent size for all icons
+        # Use semi-transparent icons to match button opacity
+        icon_color = f"rgba(255, 255, 255, {int(self.icon_base_opacity * 255)})"
         
         self.prev_btn = QPushButton()
-        self.prev_btn.setIcon(create_professional_icon("skip_previous", icon_size))
+        self.prev_btn.setIcon(create_professional_icon("skip_previous", icon_size, icon_color))
         
         self.pause_btn = QPushButton()
-        self.pause_btn.setIcon(create_professional_icon("pause", icon_size))
+        self.pause_btn.setIcon(create_professional_icon("pause", icon_size, icon_color))
         
         self.stop_btn = QPushButton()
-        self.stop_btn.setIcon(create_professional_icon("stop", icon_size))
+        self.stop_btn.setIcon(create_professional_icon("stop", icon_size, icon_color))
         
         self.next_btn = QPushButton()
-        self.next_btn.setIcon(create_professional_icon("skip_next", icon_size))
+        self.next_btn.setIcon(create_professional_icon("skip_next", icon_size, icon_color))
         
         self.zoom_out_btn = QPushButton()
-        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", icon_size))
+        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", icon_size, icon_color))
         
         self.zoom_in_btn = QPushButton()
-        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", icon_size))
+        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", icon_size, icon_color))
         
         # Connect signals
         self.prev_btn.clicked.connect(self.previous_clicked.emit)
@@ -293,4 +295,6 @@ class ButtonOverlay(QWidget):
         # If timer is active, show play when paused, pause when running
         icon_type = "play" if (not timer_active or is_paused) else "pause"
         icon_size = 18  # Match the consistent icon size
-        self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size))
+        # Use same opacity as other icons
+        icon_color = f"rgba(255, 255, 255, {int(self.icon_base_opacity * 255)})"
+        self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size, icon_color))

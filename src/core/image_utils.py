@@ -3,6 +3,7 @@
 import os
 from PySide6.QtGui import QPixmap, QPainter, QFont, QIcon, QColor, QPen, QBrush, QPolygon
 from PySide6.QtCore import Qt, QPoint
+from PySide6.QtSvg import QSvgRenderer
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.gif'}
 
@@ -57,6 +58,57 @@ def set_adaptive_bg(image_label, img_path):
 
 
 def create_professional_icon(icon_type, size=24, color="#ffffff"):
+    """Create icons from SVG files when available, fallback to coded icons."""
+    # First try to load from SVG file
+    svg_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "icons", f"{icon_type}.svg")
+    
+    if os.path.exists(svg_path):
+        # Create icon from SVG
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.transparent)
+        
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.Antialiasing, True)
+        
+        renderer = QSvgRenderer(svg_path)
+        if renderer.isValid():
+            renderer.render(painter)
+            painter.end()
+            
+            # If color is different from white, apply color tint
+            if color != "#ffffff":
+                colored_pixmap = QPixmap(size, size)
+                colored_pixmap.fill(Qt.transparent)
+                
+                colored_painter = QPainter(colored_pixmap)
+                colored_painter.setRenderHint(QPainter.Antialiasing, True)
+                
+                # Handle rgba colors by using composition
+                color_obj = QColor(color)
+                if color_obj.alpha() < 255:
+                    # For semi-transparent colors, use a different approach
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+                    colored_painter.drawPixmap(0, 0, pixmap)
+                else:
+                    # For opaque colors, use the standard approach
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
+                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_DestinationOver)  
+                    colored_painter.drawPixmap(0, 0, pixmap)
+                
+                colored_painter.end()
+                return QIcon(colored_pixmap)
+            
+            return QIcon(pixmap)
+        painter.end()
+    
+    # Fallback to coded icons
+    return _create_coded_icon(icon_type, size, color)
+
+
+def _create_coded_icon(icon_type, size=24, color="#ffffff"):
     """Create crisp, recognizable geometric icons using QPainter."""
     # Use higher DPI for crisp rendering
     scale_factor = 2
@@ -212,6 +264,116 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
         bar_width = size // 8
         bar_height = size - 2 * margin
         painter.drawRoundedRect(size - margin - bar_width, margin, bar_width, bar_height, 1, 1)
+    
+    elif icon_type == "add":
+        # Plus sign (for adding/creating new items)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Horizontal line
+        line_size = (size - 2 * margin) // 2
+        painter.drawLine(center - line_size, center, center + line_size, center)
+        # Vertical line
+        painter.drawLine(center, center - line_size, center, center + line_size)
+        
+    elif icon_type == "edit":
+        # Pencil icon for editing
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        
+        # Pencil body (diagonal rectangle)
+        pencil_width = size // 6
+        pencil_start = margin + size // 8
+        pencil_end = size - margin - size // 8
+        
+        # Create pencil shape (diagonal line with width)
+        points = [
+            QPoint(pencil_start, pencil_end),
+            QPoint(pencil_start + pencil_width, pencil_end - pencil_width),
+            QPoint(pencil_end, pencil_start),
+            QPoint(pencil_end - pencil_width, pencil_start - pencil_width)
+        ]
+        painter.drawPolygon(QPolygon(points))
+        
+        # Small square at the tip
+        tip_size = size // 10
+        painter.drawRect(pencil_end - tip_size, pencil_start - tip_size, tip_size, tip_size)
+        
+    elif icon_type == "delete":
+        # Trash can icon for deleting
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        
+        # Trash can body
+        can_width = size - 2 * margin
+        can_height = (size - 2 * margin) * 2 // 3
+        can_y = margin + size // 6
+        painter.drawRoundedRect(margin, can_y, can_width, can_height, 2, 2)
+        
+        # Trash can lid
+        lid_width = can_width + size // 8
+        lid_height = size // 10
+        lid_x = margin - size // 16
+        lid_y = can_y - lid_height // 2
+        painter.drawRoundedRect(lid_x, lid_y, lid_width, lid_height, 1, 1)
+        
+        # Handle on lid
+        handle_width = can_width // 3
+        handle_height = size // 12
+        handle_x = center - handle_width // 2
+        handle_y = lid_y - handle_height
+        painter.setPen(QPen(QColor(color), pen_width // 2))
+        painter.setBrush(Qt.NoBrush)
+        painter.drawRoundedRect(handle_x, handle_y, handle_width, handle_height, 1, 1)
+        
+    elif icon_type == "cancel":
+        # X icon for cancel
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Draw X
+        line_size = (size - 2 * margin) // 2
+        painter.drawLine(center - line_size, center - line_size, center + line_size, center + line_size)
+        painter.drawLine(center - line_size, center + line_size, center + line_size, center - line_size)
+        
+    elif icon_type == "ok":
+        # Checkmark for OK/accept
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Draw checkmark
+        check_size = (size - 2 * margin) // 3
+        check_x = center - check_size
+        check_y = center
+        painter.drawLine(check_x, check_y, check_x + check_size // 2, check_y + check_size // 2)
+        painter.drawLine(check_x + check_size // 2, check_y + check_size // 2, check_x + check_size * 2, check_y - check_size)
+        
+    elif icon_type == "shuffle":
+        # Shuffle icon (crossed arrows)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Arrow sizes
+        arrow_len = (size - 2 * margin) // 3
+        head_size = size // 8
+        
+        # Top arrow (left to right)
+        top_y = margin + arrow_len
+        painter.drawLine(margin + arrow_len//2, top_y, size - margin - arrow_len//2, top_y)
+        # Arrow head
+        painter.drawLine(size - margin - arrow_len//2, top_y, 
+                        size - margin - arrow_len//2 - head_size, top_y - head_size//2)
+        painter.drawLine(size - margin - arrow_len//2, top_y, 
+                        size - margin - arrow_len//2 - head_size, top_y + head_size//2)
+        
+        # Bottom arrow (right to left)
+        bottom_y = size - margin - arrow_len
+        painter.drawLine(size - margin - arrow_len//2, bottom_y, margin + arrow_len//2, bottom_y)
+        # Arrow head
+        painter.drawLine(margin + arrow_len//2, bottom_y, 
+                        margin + arrow_len//2 + head_size, bottom_y - head_size//2)
+        painter.drawLine(margin + arrow_len//2, bottom_y, 
+                        margin + arrow_len//2 + head_size, bottom_y + head_size//2)
     
     painter.end()
     return QIcon(pixmap)

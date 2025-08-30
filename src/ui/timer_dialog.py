@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QRadioButton, QSpinBox, QButtonGroup, QGroupBox, QApplication
 )
 from PySide6.QtCore import Qt, QTimer
+from .styles import create_dialog_action_button
 
 
 class TimerConfigDialog(QDialog):
@@ -98,14 +99,12 @@ class TimerConfigDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         
-        ok_button = QPushButton("Start Viewing")
+        ok_button = create_dialog_action_button("Start Viewing", primary=True, icon_name="ok")
         ok_button.clicked.connect(self.accept)
-        ok_button.setMinimumWidth(100)
         button_layout.addWidget(ok_button)
         
-        cancel_button = QPushButton("Cancel")
+        cancel_button = create_dialog_action_button("Cancel", icon_name="cancel")
         cancel_button.clicked.connect(self.reject)
-        cancel_button.setMinimumWidth(100)
         button_layout.addWidget(cancel_button)
         
         layout.addLayout(button_layout)

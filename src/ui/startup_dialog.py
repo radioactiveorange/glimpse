@@ -13,6 +13,7 @@ from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
 from .timer_dialog import TimerConfigDialog
 from .loading_dialog import LoadingDialog
+from .styles import create_standard_button, create_dialog_action_button
 
 
 class StartupDialog(QDialog):
@@ -31,6 +32,8 @@ class StartupDialog(QDialog):
         
         self.init_ui()
         self.refresh_collections()
+        # Ensure no item is selected by default
+        self.collections_list.clearSelection()
     
     def center_on_screen(self):
         """Center the dialog on the screen."""
@@ -89,25 +92,46 @@ class StartupDialog(QDialog):
         
         # Collections list
         self.collections_list = QListWidget()
-        self.collections_list.setMinimumHeight(200)
+        self.collections_list.setMinimumHeight(300)  # Increased from 200 for easier selection
+        self.collections_list.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.collections_list.itemDoubleClicked.connect(self.on_collection_double_clicked)
         self.collections_list.itemClicked.connect(self.on_collection_selected)
+        
+        # Improve list item spacing and appearance - fixed version
+        self.collections_list.setStyleSheet("""
+            QListWidget {
+                outline: none;
+                show-decoration-selected: 1;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #35383b;
+                min-height: 20px;
+            }
+            QListWidget::item:hover {
+                background-color: #2e3034;
+            }
+            QListWidget::item:selected {
+                background-color: #354e6e;
+                color: white;
+            }
+        """)
+        
         collections_group_layout.addWidget(self.collections_list)
         
         # Collection buttons
         collection_buttons_layout = QHBoxLayout()
         
-        self.new_collection_btn = QPushButton("New Collection")
-        self.new_collection_btn.setIcon(create_professional_icon("zoom_in", 16))
+        self.new_collection_btn = create_standard_button("New Collection", "add")
         self.new_collection_btn.clicked.connect(self.create_new_collection)
         collection_buttons_layout.addWidget(self.new_collection_btn)
         
-        self.edit_collection_btn = QPushButton("Edit")
+        self.edit_collection_btn = create_standard_button("Edit")
         self.edit_collection_btn.setEnabled(False)
         self.edit_collection_btn.clicked.connect(self.edit_selected_collection)
         collection_buttons_layout.addWidget(self.edit_collection_btn)
         
-        self.delete_collection_btn = QPushButton("Delete")
+        self.delete_collection_btn = create_standard_button("Delete")
         self.delete_collection_btn.setEnabled(False)
         self.delete_collection_btn.clicked.connect(self.delete_selected_collection)
         collection_buttons_layout.addWidget(self.delete_collection_btn)
@@ -124,10 +148,8 @@ class StartupDialog(QDialog):
         quick_group = QGroupBox("Quick Start")
         quick_layout = QVBoxLayout(quick_group)
         
-        self.quick_shuffle_btn = QPushButton("Quick Shuffle Folder")
-        self.quick_shuffle_btn.setIcon(create_professional_icon("skip_next", 16))
+        self.quick_shuffle_btn = create_standard_button("Quick Shuffle Folder", "shuffle", large=True)
         self.quick_shuffle_btn.clicked.connect(self.quick_shuffle_folder)
-        self.quick_shuffle_btn.setMinimumHeight(40)
         quick_layout.addWidget(self.quick_shuffle_btn)
         
         quick_desc = QLabel("Quickly start viewing images from a single folder")
@@ -159,15 +181,13 @@ class StartupDialog(QDialog):
         bottom_layout.setContentsMargins(0, 8, 0, 0)
         bottom_layout.addStretch()
         
-        self.open_collection_btn = QPushButton("Open Collection")
+        self.open_collection_btn = create_dialog_action_button("Open Collection", primary=True)
         self.open_collection_btn.setEnabled(False)
         self.open_collection_btn.clicked.connect(self.open_selected_collection)
-        self.open_collection_btn.setMinimumHeight(32)
         bottom_layout.addWidget(self.open_collection_btn)
         
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = create_dialog_action_button("Cancel", icon_name="cancel")
         cancel_btn.clicked.connect(self.reject)
-        cancel_btn.setMinimumHeight(32)
         bottom_layout.addWidget(cancel_btn)
         
         layout.addLayout(bottom_layout)
