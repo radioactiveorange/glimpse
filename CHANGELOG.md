@@ -1,3 +1,13 @@
+## [1.1.0](https://github.com/radioactiveorange/glimpse/compare/v1.0.0...v1.1.0) (2025-08-30)
+
+### Features
+
+* include binaries in the build ([44ec8bb](https://github.com/radioactiveorange/glimpse/commit/44ec8bb268ee35689d7749230784fb008405d760))
+
+### Bug Fixes
+
+* windows icon ([7f7227e](https://github.com/radioactiveorange/glimpse/commit/7f7227e3b4ec4df2043d348b8489c17fda68765a))
+
 ## 1.0.0 (2025-08-30)
 
 ### Features
