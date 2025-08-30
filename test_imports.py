@@ -16,7 +16,7 @@ def test_version():
     version = get_version()
     print(f"Version: {version}")
     assert version.count('.') >= 2, 'Version should be semantic (x.y.z)'
-    print("✅ Version test passed")
+    print("Version test passed")
     return version
 
 def test_core_imports():
@@ -25,23 +25,23 @@ def test_core_imports():
     from core.image_utils import IMAGE_EXTENSIONS
     from core.collections import Collection, CollectionManager
     
-    print("✅ Core modules imported successfully")
-    print(f"✅ Glimpse v{get_version()} - Core functionality verified")
-    print(f"✅ Supported image formats: {len(IMAGE_EXTENSIONS)}")
+    print("Core modules imported successfully")
+    print(f"Glimpse v{get_version()} - Core functionality verified")
+    print(f"Supported image formats: {len(IMAGE_EXTENSIONS)}")
 
 def test_gui_imports():
     """Test GUI imports (requires display)."""
     try:
         from ui.main_window import GlimpseViewer
         from version import get_version
-        print(f"✅ GUI imports successful")
-        print(f"✅ Glimpse v{get_version()} - Full GUI test passed")
+        print(f"GUI imports successful")
+        print(f"Glimpse v{get_version()} - Full GUI test passed")
     except ImportError as e:
-        print(f"❌ GUI import failed: {e}")
+        print(f"GUI import failed: {e}")
         raise
 
 if __name__ == "__main__":
-    print("🧪 Running Glimpse import tests...")
+    print("Running Glimpse import tests...")
     
     # Always test these
     version = test_version()
@@ -49,9 +49,9 @@ if __name__ == "__main__":
     
     # Test GUI only if requested
     if "--gui" in sys.argv or os.environ.get("TEST_GUI", "").lower() == "true":
-        print("🖥️  Testing GUI imports...")
+        print("Testing GUI imports...")
         test_gui_imports()
     else:
-        print("⏩ Skipping GUI tests (use --gui flag to enable)")
+        print("Skipping GUI tests (use --gui flag to enable)")
     
-    print(f"🎉 All tests passed for Glimpse v{version}!")
+    print(f"All tests passed for Glimpse v{version}!")

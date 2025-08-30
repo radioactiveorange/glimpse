@@ -40,7 +40,18 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libegl1-mesa libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 xvfb
+          sudo apt-get install -y \
+            libegl1-mesa-dev \
+            libxcb1-dev \
+            libxcb-keysyms1-dev \
+            libxcb-util1-dev \
+            libxcb-icccm4-dev \
+            libxcb-image0-dev \
+            libxcb-render-util0-dev \
+            libxcb-randr0-dev \
+            libxcb-xinerama0-dev \
+            libxkbcommon-x11-0 \
+            xvfb
 
       - name: Install dependencies
         run: |
@@ -56,8 +67,8 @@ jobs:
           xvfb-run -a python -c "
           from src.ui.main_window import GlimpseViewer
           from src.version import get_version
-          print(f'✅ GUI imports successful on Linux with virtual display')
-          print(f'✅ Glimpse v{get_version()} - Full GUI test passed')
+          print(f'GUI imports successful on Linux with virtual display')
+          print(f'Glimpse v{get_version()} - Full GUI test passed')
           "
 
       - name: Test GUI imports (Windows/macOS)
@@ -66,6 +77,6 @@ jobs:
           python -c "
           from src.ui.main_window import GlimpseViewer
           from src.version import get_version
-          print(f'✅ GUI imports successful on ${{ matrix.os }}')
-          print(f'✅ Glimpse v{get_version()} - Full GUI test passed')
+          print(f'GUI imports successful on ${{ matrix.os }}')
+          print(f'Glimpse v{get_version()} - Full GUI test passed')
           "
