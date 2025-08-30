@@ -1,5 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import sys
+
+# Select appropriate icon format for platform
+if sys.platform.startswith('win'):
+    icon_file = 'app_icon.ico'
+else:
+    icon_file = 'app_icon.png'
 
 a = Analysis(
     ['main.py'],
@@ -35,5 +42,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='app_icon.png',
+    icon=icon_file,
 )

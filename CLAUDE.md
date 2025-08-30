@@ -22,7 +22,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Manual build (Windows): `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py`
 - Manual build (Linux/macOS): `pyinstaller --noconfirm --onefile --windowed --icon=app_icon.png --name=glimpse main.py`
 - Output binary will be in the `dist/` folder
-- **Cross-platform icons**: Spec file bundles both PNG and ICO, runtime selects appropriate format
+- **Cross-platform icons**: Spec file bundles both PNG and ICO, build-time selects appropriate format
 
 ## Architecture
 
