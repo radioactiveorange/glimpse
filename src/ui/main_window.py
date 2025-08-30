@@ -17,6 +17,7 @@ from .startup_dialog import StartupDialog
 from .loading_dialog import LoadingDialog
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
+from ..version import get_version
 
 
 
@@ -26,7 +27,7 @@ class GlimpseViewer(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setFocusPolicy(Qt.StrongFocus)
-        self.setWindowTitle("Glimpse")
+        self.setWindowTitle(f"Glimpse v{get_version()}")
         self.setGeometry(100, 100, 950, 650)
         
         # Initialize settings

@@ -1,0 +1,62 @@
+name: Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      - name: Install uv (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+          echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install uv (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system pyside6
+
+      - name: Test import
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          from ui.main_window import GlimpseViewer
+          from version import get_version
+          print(f'Glimpse v{get_version()} - Import successful')
+          "
+
+      - name: Test version
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, 'src')
+          from version import get_version
+          version = get_version()
+          print(f'Version: {version}')
+          assert version.count('.') >= 2, 'Version should be semantic (x.y.z)'
+          "

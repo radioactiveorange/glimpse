@@ -12,6 +12,7 @@ build/
 dist/
 *.egg-info/
 *.spec
+!glimpse.spec
 
 # Installer logs
 pip-log.txt
