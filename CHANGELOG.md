@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/radioactiveorange/glimpse/compare/v1.3.3...v1.4.0) (2025-09-01)
+
+### Features
+
+* QoL improvements ([41460a9](https://github.com/radioactiveorange/glimpse/commit/41460a9a8fca8d5ca0b67e7a821c8e28293e0d0d))
+
 ## [1.3.3](https://github.com/radioactiveorange/glimpse/compare/v1.3.2...v1.3.3) (2025-09-01)
 
 ### Bug Fixes
