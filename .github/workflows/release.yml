@@ -159,14 +159,106 @@ jobs:
       - name: Rename executable (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          mv dist/glimpse.exe dist/glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe
+          move dist\glimpse.exe dist\glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe
 
-      - name: Create archive (Linux)
+      - name: Get architecture (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        id: arch-linux
+        run: |
+          arch=$(uname -m)
+          if [ "$arch" = "x86_64" ]; then
+            echo "arch=x64" >> $GITHUB_OUTPUT
+            echo "deb_arch=amd64" >> $GITHUB_OUTPUT
+          elif [ "$arch" = "aarch64" ]; then
+            echo "arch=arm64" >> $GITHUB_OUTPUT
+            echo "deb_arch=arm64" >> $GITHUB_OUTPUT
+          else
+            echo "arch=x64" >> $GITHUB_OUTPUT  # fallback
+            echo "deb_arch=amd64" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create tar.gz archive (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           cd dist
-          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-x64.tar.gz glimpse
+          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.tar.gz glimpse
           cd ..
+          
+      - name: Create .deb package (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # Create directory structure for .deb package
+          mkdir -p deb-package/DEBIAN
+          mkdir -p deb-package/usr/bin
+          mkdir -p deb-package/usr/share/applications
+          mkdir -p deb-package/usr/share/pixmaps
+          mkdir -p deb-package/usr/share/doc/glimpse
+          
+          # Copy executable
+          cp dist/glimpse deb-package/usr/bin/
+          chmod +x deb-package/usr/bin/glimpse
+          
+          # Copy icon
+          cp app_icon.png deb-package/usr/share/pixmaps/glimpse.png
+          
+          # Create desktop entry
+          cat > deb-package/usr/share/applications/glimpse.desktop << EOF
+          [Desktop Entry]
+          Name=Glimpse
+          Comment=Random image viewer for collections
+          Exec=glimpse
+          Icon=glimpse
+          Terminal=false
+          Type=Application
+          Categories=Graphics;Photography;Viewer;
+          EOF
+          
+          # Create control file
+          cat > deb-package/DEBIAN/control << EOF
+          Package: glimpse
+          Version: ${{ needs.semantic-release.outputs.new-release-version }}
+          Section: graphics
+          Priority: optional
+          Architecture: ${{ steps.arch-linux.outputs.deb_arch }}
+          Depends: libc6, libstdc++6, libqt6core6, libqt6gui6, libqt6widgets6
+          Maintainer: Glimpse Team <noreply@example.com>
+          Description: Random image viewer for collections
+           A cross-platform desktop application for viewing random images from folders
+           or collections. Useful for reference studies, browsing large image libraries,
+           and rediscovering artwork.
+           .
+           Features include collections management, timer system, zoom and pan support,
+           image transformations, and a dark theme interface.
+          EOF
+          
+          # Create copyright file
+          cat > deb-package/usr/share/doc/glimpse/copyright << EOF
+          Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+          Upstream-Name: glimpse
+          Source: https://github.com/radioactiveorange/glimpse
+
+          Files: *
+          Copyright: 2024 Glimpse Team
+          License: GPL-3.0+
+           This program is free software: you can redistribute it and/or modify
+           it under the terms of the GNU General Public License as published by
+           the Free Software Foundation, either version 3 of the License, or
+           (at your option) any later version.
+           .
+           This program is distributed in the hope that it will be useful,
+           but WITHOUT ANY WARRANTY; without even the implied warranty of
+           MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+           GNU General Public License for more details.
+           .
+           You should have received a copy of the GNU General Public License
+           along with this program.  If not, see <https://www.gnu.org/licenses/>.
+           .
+           On Debian systems, the complete text of the GNU General
+           Public License version 3 can be found in "/usr/share/common-licenses/GPL-3".
+          EOF
+          
+          # Build the .deb package
+          dpkg-deb --build deb-package glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.deb
 
       - name: Get architecture (macOS)
         if: matrix.os == 'macos-latest'
@@ -202,6 +294,7 @@ jobs:
           path: |
             glimpse-*.exe
             glimpse-*.tar.gz
+            glimpse-*.deb
             glimpse-*.dmg
 
   # Create the actual release with binaries
@@ -242,7 +335,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
-          find ./artifacts -name "*.exe" -o -name "*.tar.gz" -o -name "*.dmg" | xargs -I {} cp {} release-assets/
+          find ./artifacts -name "*.exe" -o -name "*.tar.gz" -o -name "*.deb" -o -name "*.dmg" | xargs -I {} cp {} release-assets/
           ls -la release-assets/
 
       - name: Create version file for semantic-release
