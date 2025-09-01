@@ -1,13 +1,15 @@
 """Startup dialog for collection management and quick folder access."""
 
 import os
+import sys
+import subprocess
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, 
     QListWidgetItem, QFileDialog, QInputDialog, QMessageBox, QWidget,
     QSplitter, QTextEdit, QGroupBox, QSizePolicy, QApplication
 )
-from PySide6.QtGui import QFont
-from PySide6.QtCore import Qt, Signal, QTimer
+from PySide6.QtGui import QFont, QDesktopServices
+from PySide6.QtCore import Qt, Signal, QTimer, QUrl
 
 from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
@@ -86,9 +88,35 @@ class StartupDialog(QDialog):
         collections_layout = QVBoxLayout(collections_widget)
         collections_layout.setContentsMargins(0, 0, 10, 0)
         
-        # Collections group
-        collections_group = QGroupBox("Collections")
+        # Custom collections group with title bar
+        collections_group = QWidget()
+        collections_group.setStyleSheet("""
+            QWidget {
+                border: 1px solid #35383b;
+                border-radius: 4px;
+                background-color: #232629;
+            }
+        """)
         collections_group_layout = QVBoxLayout(collections_group)
+        collections_group_layout.setContentsMargins(8, 8, 8, 8)
+        
+        # Collections title bar with location button
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 8)
+        
+        title_label = QLabel("Collections")
+        title_label.setStyleSheet("font-weight: bold; color: #b7bcc1; border: none; background: none;")
+        title_layout.addWidget(title_label)
+        
+        title_layout.addStretch()
+        
+        self.show_location_btn = create_standard_button("", "folder")
+        self.show_location_btn.setToolTip("Show collections folder location")
+        self.show_location_btn.setFixedSize(28, 28)
+        self.show_location_btn.clicked.connect(self.show_collections_location)
+        title_layout.addWidget(self.show_location_btn)
+        
+        collections_group_layout.addLayout(title_layout)
         
         # Collections list
         self.collections_list = QListWidget()
@@ -410,6 +438,43 @@ class StartupDialog(QDialog):
                 self.collection_selected.emit((collection, timer_enabled, timer_interval))
                 self.accept()
             # If timer dialog was cancelled, just return (keep startup dialog open)
+    
+    def show_collections_location(self):
+        """Open the collections directory in the system file manager."""
+        collections_dir = self.collection_manager.collections_dir
+        
+        # Ensure the directory exists
+        if not os.path.exists(collections_dir):
+            os.makedirs(collections_dir, exist_ok=True)
+        
+        # Try to open in file manager using cross-platform approach
+        try:
+            if sys.platform == "win32":
+                # Windows - use explorer
+                subprocess.run(["explorer", collections_dir], check=True)
+            elif sys.platform == "darwin":
+                # macOS - use Finder
+                subprocess.run(["open", collections_dir], check=True)
+            else:
+                # Linux - try common file managers
+                file_managers = ["xdg-open", "nautilus", "dolphin", "thunar", "pcmanfm"]
+                for fm in file_managers:
+                    try:
+                        subprocess.run([fm, collections_dir], check=True)
+                        break
+                    except (subprocess.SubprocessError, FileNotFoundError):
+                        continue
+                else:
+                    # Fallback to Qt's desktop services
+                    QDesktopServices.openUrl(QUrl.fromLocalFile(collections_dir))
+        except Exception as e:
+            # Fallback to showing a message with the path
+            QMessageBox.information(
+                self, 
+                "Collections Location", 
+                f"Collections are stored in:\n{collections_dir}\n\n"
+                f"(Could not open file manager: {str(e)})"
+            )
     
     def quick_shuffle_folder(self):
         """Quick shuffle a single folder with timer configuration."""

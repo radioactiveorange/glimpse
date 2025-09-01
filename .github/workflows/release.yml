@@ -191,14 +191,14 @@ jobs:
           Get-ChildItem dist -Force
           echo ""
           if (Test-Path "dist\glimpse.exe") {
-            $newName = "glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
+            $newName = "glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
             Copy-Item "dist\glimpse.exe" $newName
             echo "Successfully created $newName"
             echo "File created:"
             Get-ChildItem $newName -Force
           } elseif (Test-Path "dist\glimpse") {
             echo "Found 'glimpse' without .exe extension - renaming it"
-            $newName = "glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
+            $newName = "glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
             Copy-Item "dist\glimpse" $newName  
             echo "Successfully created $newName from 'glimpse'"
             echo "File created:"
@@ -233,11 +233,11 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           # Create renamed binary
-          cp dist/glimpse glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}
+          cp dist/glimpse glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}
           
           # Create tar.gz archive
           cd dist
-          tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.tar.gz glimpse
+          tar -czf ../glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.tar.gz glimpse
           cd ..
           
       - name: Create .deb package (Linux)
@@ -333,7 +333,7 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: |
           # Create renamed binary
-          cp dist/glimpse glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}
+          cp dist/glimpse glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}
           
           # Create a temporary directory for the DMG contents
           mkdir -p dmg-contents
@@ -344,13 +344,13 @@ jobs:
                          -srcfolder dmg-contents \
                          -ov \
                          -format UDZO \
-                         glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}.dmg
+                         glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}.dmg
 
       - name: Verify artifacts before upload (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           echo "=== FILES AVAILABLE FOR UPLOAD ==="
-          Get-ChildItem . -Filter "glimpse-*" -Force | Select-Object Name, Length, LastWriteTime
+          Get-ChildItem . -Filter "glimpse-viewer-*" -Force | Select-Object Name, Length, LastWriteTime
           echo ""
           echo "=== ALL FILES IN CURRENT DIRECTORY ==="
           Get-ChildItem . -Force
@@ -360,15 +360,15 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           echo "=== FILES AVAILABLE FOR UPLOAD ==="
-          ls -la glimpse-* 2>/dev/null || echo "No glimpse-* files found with ls"
+          ls -la glimpse-viewer-* 2>/dev/null || echo "No glimpse-viewer-* files found with ls"
           echo "=== ALL FILES IN CURRENT DIRECTORY ==="
           ls -la
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: glimpse-${{ matrix.name }}
-          path: glimpse-*
+          name: glimpse-viewer-${{ matrix.name }}
+          path: glimpse-viewer-*
           if-no-files-found: error
 
   # Create the actual release with binaries
@@ -409,7 +409,7 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release-assets
-          find ./artifacts -name "*.exe" -o -name "*.tar.gz" -o -name "*.deb" -o -name "*.dmg" | xargs -I {} cp {} release-assets/
+          find ./artifacts -name "glimpse-viewer-*.exe" -o -name "glimpse-viewer-*.tar.gz" -o -name "glimpse-viewer-*.deb" -o -name "glimpse-viewer-*.dmg" | xargs -I {} cp {} release-assets/
           ls -la release-assets/
 
       - name: Create version file for semantic-release

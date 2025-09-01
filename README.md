@@ -8,6 +8,24 @@
 
 A cross-platform desktop application for viewing random images from folders or collections. Useful for reference studies, browsing large image libraries, and rediscovering artwork.
 
+[![Latest Release](https://img.shields.io/github/v/release/radioactiveorange/glimpse)](https://github.com/radioactiveorange/glimpse/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/radioactiveorange/glimpse/total)](https://github.com/radioactiveorange/glimpse/releases)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [📦 Installation](#-installation)
+- [🚀 Quick Start](#-quick-start)
+- [🎯 Use Cases](#-use-cases)
+- [⌨️ Keyboard Shortcuts](#️-keyboard-shortcuts)
+- [🖱️ Mouse Controls](#️-mouse-controls)
+- [🛠️ Advanced Features](#️-advanced-features)
+- [🏗️ Technical Details](#️-technical-details)
+- [🎨 Screenshots](#-screenshots)
+- [🤝 Contributing](#-contributing)
+- [📝 License](#-license)
+
 ## ✨ Features
 
 ### 🎲 **Collections & Random Viewing**
@@ -31,64 +49,60 @@ A cross-platform desktop application for viewing random images from folders or c
 - Minimal UI design
 
 ### 💾 **Collection Management**
-- Multi-folder collections
+- Multi-folder collections with professional startup dialog
 - Persistent storage between sessions
+- Collection editing, deletion, and organization
+- Quick folder location access
 - Cross-platform support (Windows, macOS, Linux)
 
 ---
 
-## 🚀 Quick Start
+## 📦 Installation
 
-### Installation
+### 🎯 Recommended: Download Pre-built Binaries
+
+**[📥 Download Latest Release](https://github.com/radioactiveorange/glimpse/releases/latest)**
+
+| Platform | File | Installation |
+|----------|------|--------------|
+| **Windows** | `glimpse-viewer-*.exe` | Download and run directly |
+| **macOS** | `glimpse-viewer-*.dmg` | Download, mount, and drag to Applications |
+| **Linux** | `glimpse-viewer-*.deb` | `sudo dpkg -i glimpse-viewer-*.deb` |
+| **Linux** | `glimpse-viewer-*.tar.gz` | Extract and run `./glimpse` |
+
+### 🛠️ Development Installation
 
 **Prerequisites:**
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/) (fast Python package manager) - Install with: `pip install uv`
 
-**Option 1: Run from Source**
+**Run from Source:**
 ```bash
 # Clone the repository
 git clone https://github.com/radioactiveorange/glimpse.git
 cd glimpse
 
-# Create and activate virtual environment with uv (recommended)
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-uv pip install -e .
+# Install dependencies and run (uv handles venv automatically)
+uv pip install pyside6
 
 # Run the application
 uv run main.py
 ```
 
-**Alternative with uv (no manual venv activation needed):**
-```bash
-# Clone the repository
-git clone https://github.com/radioactiveorange/glimpse.git
-cd glimpse
-
-# Install dependencies (uv handles venv automatically)
-uv pip install -e .
-
-# Run the application
-uv run main.py
-```
-
-**Option 2: Build Executable**
+**Build Your Own Executable:**
 ```bash
 # Install build dependencies
-uv pip install -e ".[build]"
+uv pip install pyinstaller pyside6
 
-# Build standalone executable
-pyinstaller --noconfirm --onefile --windowed --icon=app_icon.ico --name=glimpse main.py
+# Build standalone executable using the spec file
+pyinstaller glimpse.spec
 
 # Find your executable in the dist/ folder
 ```
 
 ---
 
-### First Launch
+## 🚀 Quick Start
 
 1. Create a collection by clicking "New Collection" and selecting folders
 2. Configure timer settings (or disable for manual browsing)
@@ -112,9 +126,15 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 | Shortcut | Action |
 |----------|--------|
 | `←` `→` | Navigate previous/next image |
+| `Space` | Play/pause timer |
 | `Ctrl` `+` | Zoom in |
 | `Ctrl` `-` | Zoom out |
-| `Ctrl` `0` | Reset zoom to 100% |
+| `Ctrl` `0` | Reset zoom and center image |
+| `F` | Flip image horizontally |
+| `G` | Toggle grayscale mode |
+| `B` | Cycle background modes (black/gray/adaptive) |
+| `H` | Toggle history panel |
+| `Esc` | Switch collection/folder |
 | `Right-click` | Open context menu |
 
 ## 🖱️ Mouse Controls
@@ -128,27 +148,50 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 ## 🛠️ Advanced Features
 
 ### Collection Management
-- Edit collections (rename, manage folders)
-- Delete collections
+- Professional startup dialog with ShuffleBird-inspired design
+- Edit collections (rename, manage folders) 
+- Delete collections with confirmation
 - Auto-sorted by recent usage
+- Quick folder location access button
+- Async loading for large collections (72K+ images tested)
 
 ### Image Processing  
 - Supported formats: JPG, JPEG, PNG, BMP, GIF
 - Recursive search in subfolders
-- Grayscale mode and flip controls
+- Image transformations: flip horizontal/vertical, grayscale
+- Smart image caching for performance
 
 ### Customization
-- Background modes: Black, Gray, Adaptive Color
-- Timer intervals: 30s, 1min, 2min, 5min, or custom
-- Configurable history panel
+- Background modes: Black, Gray, Smart Adaptive Color
+- Timer intervals: 30s, 1min, 2min, 5min, 10min, 30min, or custom
+- Configurable history panel with thumbnails
+- Professional button styling with SVG icons
 
 ## 🏗️ Technical Details
 
-- Framework: PySide6 (Qt for Python)
-- Modular architecture
-- JSON-based collection storage
-- Cross-platform settings and data directories
-- Image caching for smooth performance
+- **Framework**: PySide6 (Qt for Python) 
+- **Architecture**: Clean modular structure with UI/core separation
+- **Collection Storage**: JSON files in platform-appropriate directories:
+  - Linux: `~/.local/share/glimpse/collections/`
+  - Windows: `%LOCALAPPDATA%/glimpse/collections/`
+  - macOS: `~/Library/Application Support/glimpse/collections/`
+- **Image Processing**: Optimized pixmap caching and async loading
+- **UI Components**: Custom widgets with professional dark theme
+- **Icons**: SVG-based with coded fallbacks for consistency
+- **Settings**: QSettings with cross-platform persistence
+- **Threading**: Worker threads for large collection operations
+- **Build System**: PyInstaller with optimized spec file for all platforms
+- **Package Management**: Debian (.deb), DMG (macOS), and portable binaries
+
+### System Requirements
+
+| Platform | Minimum | Recommended |
+|----------|---------|-------------|
+| **Windows** | Windows 10 | Windows 11 |
+| **macOS** | macOS 10.15 | macOS 12+ |
+| **Linux** | Ubuntu 20.04 / equivalent | Ubuntu 22.04+ |
+| **RAM** | 2GB | 4GB+ |
+| **Storage** | 50MB | 100MB+ |
 
 ## 🎨 Screenshots
 
@@ -168,7 +211,30 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ## 🤝 Contributing
 
-This project was built collaboratively with Claude Code. Contributions, bug reports, and feature requests are welcome!
+This project was built collaboratively with Claude Code. We welcome:
+
+- 🐛 **Bug reports** - [Open an issue](https://github.com/radioactiveorange/glimpse/issues)
+- 💡 **Feature requests** - [Suggest improvements](https://github.com/radioactiveorange/glimpse/issues)
+- 🔧 **Pull requests** - Fork and contribute code
+- 📖 **Documentation** - Help improve docs and examples
+- 🧪 **Testing** - Try on different platforms and report findings
+
+### Development Setup
+
+1. Fork the repository
+2. Follow the [Development Installation](#🛠️-development-installation) steps
+3. Make your changes
+4. Test on your platform
+5. Submit a pull request
+
+### Reporting Issues
+
+When reporting bugs, please include:
+- Operating system and version
+- Python version 
+- Steps to reproduce
+- Expected vs actual behavior
+- Screenshots if relevant
 
 ---
 

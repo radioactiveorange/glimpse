@@ -430,6 +430,25 @@ def _create_coded_icon(icon_type, size=24, color="#ffffff"):
         painter.drawLine(margin + 2, size - margin - 2, margin + 2 + head_size//2, size - margin - 2 - head_size)
         painter.drawLine(margin + 2, size - margin - 2, margin + size//3, size - margin - 2)
         painter.drawLine(margin + size//3, size - margin - 2, margin + size//3 - head_size, size - margin - 2 - head_size//2)
+        
+    elif icon_type == "folder":
+        # Folder icon
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Folder body
+        folder_width = size - 2 * margin
+        folder_height = (size - 2 * margin) * 2 // 3
+        folder_y = margin + size // 6
+        
+        # Draw folder outline
+        painter.drawRoundedRect(margin, folder_y, folder_width, folder_height, 2, 2)
+        
+        # Folder tab (top part)
+        tab_width = folder_width // 3
+        tab_height = size // 8
+        tab_y = folder_y - tab_height // 2
+        painter.drawRoundedRect(margin, tab_y, tab_width, tab_height, 1, 1)
     
     painter.end()
     return QIcon(pixmap)

@@ -7,7 +7,8 @@ import subprocess
 from PySide6.QtWidgets import (
     QMainWindow, QFileDialog, QVBoxLayout, QWidget,
     QListWidget, QListWidgetItem, QSplitter, QSizePolicy,
-    QMenu, QInputDialog, QDialog, QApplication
+    QMenu, QInputDialog, QDialog, QApplication, QTableWidget, 
+    QTableWidgetItem, QHeaderView, QDialogButtonBox, QLabel as QDialogLabel
 )
 from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
 from PySide6.QtCore import Qt, QTimer, QSize, QSettings, QThread, Signal
@@ -18,6 +19,124 @@ from .loading_dialog import LoadingDialog
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
 
+
+class KeyboardShortcutsDialog(QDialog):
+    """Dialog to display keyboard shortcuts help."""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Keyboard Shortcuts")
+        self.setModal(True)
+        self.resize(400, 450)
+        
+        # Center the dialog
+        if parent:
+            parent_geometry = parent.frameGeometry()
+            dialog_geometry = self.frameGeometry()
+            x = parent_geometry.center().x() - dialog_geometry.width() // 2
+            y = parent_geometry.center().y() - dialog_geometry.height() // 2
+            self.move(x, y)
+        
+        self.init_ui()
+    
+    def init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+        
+        # Title
+        title_label = QDialogLabel("Keyboard Shortcuts")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #b7bcc1; margin-bottom: 8px;")
+        layout.addWidget(title_label)
+        
+        # Create table for shortcuts
+        table = QTableWidget(11, 2)
+        table.setHorizontalHeaderLabels(["Shortcut", "Action"])
+        table.verticalHeader().hide()
+        
+        # Set table style
+        table.setStyleSheet("""
+            QTableWidget {
+                background-color: #232629;
+                color: #b7bcc1;
+                gridline-color: #35383b;
+                border: 1px solid #35383b;
+            }
+            QTableWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #35383b;
+            }
+            QTableWidget::item:selected {
+                background-color: #354e6e;
+            }
+            QHeaderView::section {
+                background-color: #35383b;
+                color: #b7bcc1;
+                padding: 8px;
+                border: 1px solid #232629;
+                font-weight: bold;
+            }
+        """)
+        
+        # Add shortcuts data
+        shortcuts = [
+            ("←  →", "Navigate previous/next image"),
+            ("Space", "Play/pause timer"),
+            ("Ctrl +", "Zoom in"),
+            ("Ctrl -", "Zoom out"),
+            ("Ctrl 0", "Reset zoom and center image"),
+            ("F", "Flip image horizontally"),
+            ("G", "Toggle grayscale mode"),
+            ("B", "Cycle background modes"),
+            ("H", "Toggle history panel"),
+            ("Esc", "Switch collection/folder"),
+            ("Right-click", "Open context menu")
+        ]
+        
+        for row, (shortcut, action) in enumerate(shortcuts):
+            shortcut_item = QTableWidgetItem(shortcut)
+            action_item = QTableWidgetItem(action)
+            
+            # Make items read-only and center shortcut column
+            shortcut_item.setFlags(shortcut_item.flags() & ~Qt.ItemIsEditable)
+            action_item.setFlags(action_item.flags() & ~Qt.ItemIsEditable)
+            shortcut_item.setTextAlignment(Qt.AlignCenter)
+            
+            table.setItem(row, 0, shortcut_item)
+            table.setItem(row, 1, action_item)
+        
+        # Resize columns
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.Stretch)
+        
+        layout.addWidget(table)
+        
+        # Close button
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok)
+        button_box.setStyleSheet("""
+            QDialogButtonBox {
+                margin-top: 8px;
+            }
+            QPushButton {
+                background-color: #0078d4;
+                color: white;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                min-width: 80px;
+            }
+            QPushButton:hover {
+                background-color: #106ebe;
+            }
+            QPushButton:pressed {
+                background-color: #005a9e;
+            }
+        """)
+        button_box.accepted.connect(self.accept)
+        layout.addWidget(button_box)
 
 
 class GlimpseViewer(QMainWindow):
@@ -166,6 +285,21 @@ class GlimpseViewer(QMainWindow):
             self.show_next_image()
         elif event.key() == Qt.Key_Space:
             self.toggle_pause()
+        elif event.key() == Qt.Key_F:
+            self.flip_horizontal()
+        elif event.key() == Qt.Key_G:
+            # Toggle grayscale mode
+            current_grayscale = self.settings.value("grayscale_enabled", False, type=bool)
+            self.toggle_grayscale(not current_grayscale)
+        elif event.key() == Qt.Key_B:
+            self.cycle_background_mode()
+        elif event.key() == Qt.Key_H:
+            # Toggle history panel
+            current_visibility = self.history_list.isVisible()
+            self.toggle_history_panel(not current_visibility)
+        elif event.key() == Qt.Key_Escape:
+            # Switch collection/folder
+            self.show_welcome_dialog()
         elif event.modifiers() & Qt.ControlModifier:
             if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
                 self.zoom_in()
@@ -577,6 +711,26 @@ class GlimpseViewer(QMainWindow):
         """Change the background color mode."""
         self.settings.setValue("bg_mode", mode)
         self.display_image(self.current_image) if self.current_image else None
+    
+    def cycle_background_mode(self):
+        """Cycle through background modes: Black -> Gray -> Adaptive Color -> Black."""
+        current_mode = self.settings.value("bg_mode", "Black")
+        modes = ["Black", "Gray", "Adaptive Color"]
+        
+        try:
+            current_index = modes.index(current_mode)
+            next_index = (current_index + 1) % len(modes)
+            next_mode = modes[next_index]
+        except ValueError:
+            # If current mode is not in list, default to first mode
+            next_mode = modes[0]
+        
+        self.change_bg_mode(next_mode)
+    
+    def show_keyboard_shortcuts(self):
+        """Show the keyboard shortcuts help dialog."""
+        dialog = KeyboardShortcutsDialog(self)
+        dialog.exec()
 
     def toggle_grayscale(self, checked):
         """Toggle grayscale mode."""
@@ -775,6 +929,14 @@ class GlimpseViewer(QMainWindow):
         welcome_action = QAction("Switch Collection/Folder...", self)
         welcome_action.triggered.connect(self.show_welcome_dialog)
         menu.addAction(welcome_action)
+        
+        # Add separator before help
+        menu.addSeparator()
+        
+        # Keyboard shortcuts help
+        shortcuts_action = QAction("Keyboard Shortcuts...", self)
+        shortcuts_action.triggered.connect(self.show_keyboard_shortcuts)
+        menu.addAction(shortcuts_action)
         
         menu.exec(self.image_label.mapToGlobal(pos))
 
