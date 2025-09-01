@@ -139,7 +139,18 @@ jobs:
               return VERSION
           EOF
 
-      - name: Check files before build
+      - name: Check files before build (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "Checking for required files:"
+          Get-ChildItem -Path app_icon.png, app_icon.ico, main.py, glimpse.spec -ErrorAction SilentlyContinue | Format-Table Name, Length, LastWriteTime
+          if (-not (Test-Path app_icon.png) -or -not (Test-Path app_icon.ico) -or -not (Test-Path main.py) -or -not (Test-Path glimpse.spec)) {
+            echo "Some files missing"
+          }
+        shell: powershell
+
+      - name: Check files before build (Unix)
+        if: matrix.os != 'windows-latest'
         run: |
           echo "Checking for required files:"
           ls -la app_icon.png app_icon.ico main.py glimpse.spec || echo "Some files missing"
@@ -151,12 +162,20 @@ jobs:
           echo "Linux build completed. Contents of dist:"
           ls -la dist/
 
-      - name: Build executable (Windows/macOS)
-        if: matrix.os != 'ubuntu-latest'
+      - name: Build executable (Windows)
+        if: matrix.os == 'windows-latest'
         run: |
           pyinstaller glimpse.spec
           echo "Build completed. Contents of dist:"
-          ls -la dist/ || dir dist
+          Get-ChildItem dist -Force
+        shell: powershell
+
+      - name: Build executable (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller glimpse.spec
+          echo "Build completed. Contents of dist:"
+          ls -la dist/
 
       - name: Get architecture (Windows)
         if: matrix.os == 'windows-latest'
@@ -327,18 +346,23 @@ jobs:
                          -format UDZO \
                          glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}.dmg
 
-      - name: Verify artifacts before upload
+      - name: Verify artifacts before upload (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "=== FILES AVAILABLE FOR UPLOAD ==="
+          Get-ChildItem . -Filter "glimpse-*" -Force | Select-Object Name, Length, LastWriteTime
+          echo ""
+          echo "=== ALL FILES IN CURRENT DIRECTORY ==="
+          Get-ChildItem . -Force
+        shell: powershell
+
+      - name: Verify artifacts before upload (Unix)
+        if: matrix.os != 'windows-latest'
         run: |
           echo "=== FILES AVAILABLE FOR UPLOAD ==="
           ls -la glimpse-* 2>/dev/null || echo "No glimpse-* files found with ls"
-          
-          # Try Windows-specific check
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            powershell "Get-ChildItem . -Filter 'glimpse-*' -Force | Select-Object Name, Length, LastWriteTime"
-          fi
-          
           echo "=== ALL FILES IN CURRENT DIRECTORY ==="
-          ls -la || dir
+          ls -la
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
