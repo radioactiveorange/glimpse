@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/radioactiveorange/glimpse/compare/v1.2.0...v1.3.0) (2025-09-01)
+
+### Features
+
+* add debian build and fix windows build ([f840bd2](https://github.com/radioactiveorange/glimpse/commit/f840bd274dafcde28c345e9c753e5b922fa00484))
+
 ## [1.2.0](https://github.com/radioactiveorange/glimpse/compare/v1.1.2...v1.2.0) (2025-09-01)
 
 ### Features
