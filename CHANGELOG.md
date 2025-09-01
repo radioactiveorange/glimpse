@@ -1,3 +1,9 @@
+## [1.3.2](https://github.com/radioactiveorange/glimpse/compare/v1.3.1...v1.3.2) (2025-09-01)
+
+### Bug Fixes
+
+* include svg icons in build and update fallbacks ([a75e70b](https://github.com/radioactiveorange/glimpse/commit/a75e70b3640f1401f06707f2a049422529fbf6be))
+
 ## [1.3.1](https://github.com/radioactiveorange/glimpse/compare/v1.3.0...v1.3.1) (2025-09-01)
 
 ### Bug Fixes
