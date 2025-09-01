@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/radioactiveorange/glimpse/compare/v1.4.0...v1.4.1) (2025-09-01)
+
+### Bug Fixes
+
+* semi transparent buttons ([c803e4f](https://github.com/radioactiveorange/glimpse/commit/c803e4fa8fe3438a85bb19dc7a54b5a78fc769f8))
+
 ## [1.4.0](https://github.com/radioactiveorange/glimpse/compare/v1.3.3...v1.4.0) (2025-09-01)
 
 ### Features
