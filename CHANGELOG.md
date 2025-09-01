@@ -1,3 +1,14 @@
+## [1.3.1](https://github.com/radioactiveorange/glimpse/compare/v1.3.0...v1.3.1) (2025-09-01)
+
+### Bug Fixes
+
+* builds and releases ([dd05ac2](https://github.com/radioactiveorange/glimpse/commit/dd05ac2883c395619b84ab4c94f5a8ca3a9974b4))
+* windows build ([5835160](https://github.com/radioactiveorange/glimpse/commit/5835160a3e3870e39886d522404550c120eca123))
+
+### Tests
+
+* windows build upload ([97ed120](https://github.com/radioactiveorange/glimpse/commit/97ed120ed7ccd9b1dab79c374c0fcfb867d8bb8f))
+
 ## [1.3.0](https://github.com/radioactiveorange/glimpse/compare/v1.2.0...v1.3.0) (2025-09-01)
 
 ### Features
