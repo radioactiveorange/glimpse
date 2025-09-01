@@ -139,15 +139,24 @@ jobs:
               return VERSION
           EOF
 
+      - name: Check files before build
+        run: |
+          echo "Checking for required files:"
+          ls -la app_icon.png app_icon.ico main.py glimpse.spec || echo "Some files missing"
+          
       - name: Build executable (Linux with virtual display)
         if: matrix.os == 'ubuntu-latest'
         run: |
           xvfb-run -a pyinstaller glimpse.spec
+          echo "Linux build completed. Contents of dist:"
+          ls -la dist/
 
       - name: Build executable (Windows/macOS)
         if: matrix.os != 'ubuntu-latest'
         run: |
           pyinstaller glimpse.spec
+          echo "Build completed. Contents of dist:"
+          ls -la dist/ || dir dist
 
       - name: Get architecture (Windows)
         if: matrix.os == 'windows-latest'
@@ -156,10 +165,34 @@ jobs:
           $arch = if ($env:PROCESSOR_ARCHITECTURE -eq "AMD64") { "x64" } else { "x86" }
           echo "arch=$arch" >> $env:GITHUB_OUTPUT
           
-      - name: Rename executable (Windows)
+      - name: Rename and verify executable (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          move dist\glimpse.exe dist\glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe
+          echo "Contents of dist directory:"
+          Get-ChildItem dist -Force
+          echo ""
+          if (Test-Path "dist\glimpse.exe") {
+            $newName = "glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
+            Copy-Item "dist\glimpse.exe" $newName
+            echo "Successfully created $newName"
+            echo "File created:"
+            Get-ChildItem $newName -Force
+          } elseif (Test-Path "dist\glimpse") {
+            echo "Found 'glimpse' without .exe extension - renaming it"
+            $newName = "glimpse-${{ needs.semantic-release.outputs.new-release-version }}-windows-${{ steps.arch-windows.outputs.arch }}.exe"
+            Copy-Item "dist\glimpse" $newName  
+            echo "Successfully created $newName from 'glimpse'"
+            echo "File created:"
+            Get-ChildItem $newName -Force
+          } else {
+            echo "ERROR: Neither dist\glimpse.exe nor dist\glimpse found!"
+            echo "Full contents of dist:"
+            Get-ChildItem dist -Recurse -Force
+            exit 1
+          }
+          echo ""
+          echo "Final directory contents:"
+          Get-ChildItem . -Force
 
       - name: Get architecture (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -286,6 +319,19 @@ jobs:
                          -ov \
                          -format UDZO \
                          glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}.dmg
+
+      - name: Verify artifacts before upload
+        run: |
+          echo "=== FILES AVAILABLE FOR UPLOAD ==="
+          ls -la glimpse-* 2>/dev/null || echo "No glimpse-* files found with ls"
+          
+          # Try Windows-specific check
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            powershell "Get-ChildItem . -Filter 'glimpse-*' -Force | Select-Object Name, Length, LastWriteTime"
+          fi
+          
+          echo "=== ALL FILES IN CURRENT DIRECTORY ==="
+          ls -la || dir
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
