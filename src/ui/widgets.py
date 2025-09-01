@@ -227,38 +227,36 @@ class ButtonOverlay(QWidget):
         # Enable mouse tracking
         self.setMouseTracking(True)
         
-        # Initially semi-transparent
-        self.base_opacity = 0.3
-        self.hover_opacity = 0.8
-        self.icon_base_opacity = 0.5  # Icons start more transparent
-        self.icon_hover_opacity = 1.0  # Icons become fully opaque on hover
-        self.setStyleSheet(f"""
-            ButtonOverlay {{
-                background-color: rgba(0, 0, 0, {int(self.base_opacity * 255)});
+        # Initially semi-transparent  
+        self.base_opacity = 0.15  # Background opacity
+        self.hover_opacity = 0.5   # Background opacity on hover
+        self.setStyleSheet("""
+            ButtonOverlay {
+                background-color: rgba(0, 0, 0, 38);
                 border-radius: 25px;
-            }}
-            ButtonOverlay:hover {{
-                background-color: rgba(0, 0, 0, {int(self.hover_opacity * 255)});
-            }}
-            QPushButton {{
+            }
+            ButtonOverlay:hover {
+                background-color: rgba(0, 0, 0, 128);
+            }
+            QPushButton {
                 background: transparent;
                 border: none;
-                color: rgba(255, 255, 255, {int(self.icon_base_opacity * 255)});
+                color: #ffffff;
                 font-size: 16px;
                 padding: 0px;
                 border-radius: 20px;
                 min-width: 40px;
                 min-height: 40px;
                 text-align: center;
-            }}
-            QPushButton:hover {{
+            }
+            QPushButton:hover {
                 background-color: rgba(255, 255, 255, 30);
-                color: rgba(255, 255, 255, {int(self.icon_hover_opacity * 255)});
-            }}
-            QPushButton:pressed {{
+                color: #ffffff;
+            }
+            QPushButton:pressed {
                 background-color: rgba(255, 255, 255, 50);
-                color: rgba(255, 255, 255, {int(self.icon_hover_opacity * 255)});
-            }}
+                color: #ffffff;
+            }
         """)
         
         # Create layout
@@ -271,26 +269,44 @@ class ButtonOverlay(QWidget):
         
         # Create buttons with professional geometric icons (all same size)
         icon_size = 18  # Consistent size for all icons
-        # Use semi-transparent icons to match button opacity
-        icon_color = f"rgba(255, 255, 255, {int(self.icon_base_opacity * 255)})"
+        # Use solid white and apply opacity to the pixmaps directly
+        icon_color = "#ffffff"
         
+        # Create base icons with transparency applied to pixmap
         self.prev_btn = QPushButton()
-        self.prev_btn.setIcon(create_professional_icon("skip_previous", icon_size, icon_color))
+        self.prev_btn._base_icon = self._create_transparent_icon("skip_previous", icon_size, icon_color, 0.7)
+        self.prev_btn._hover_icon = create_professional_icon("skip_previous", icon_size, icon_color)
+        self.prev_btn.setIcon(self.prev_btn._base_icon)
         
         self.pause_btn = QPushButton()
-        self.pause_btn.setIcon(create_professional_icon("pause", icon_size, icon_color))
+        self.pause_btn._base_icon = self._create_transparent_icon("pause", icon_size, icon_color, 0.7)
+        self.pause_btn._hover_icon = create_professional_icon("pause", icon_size, icon_color)
+        self.pause_btn.setIcon(self.pause_btn._base_icon)
         
         self.stop_btn = QPushButton()
-        self.stop_btn.setIcon(create_professional_icon("stop", icon_size, icon_color))
+        self.stop_btn._base_icon = self._create_transparent_icon("stop", icon_size, icon_color, 0.7)
+        self.stop_btn._hover_icon = create_professional_icon("stop", icon_size, icon_color)
+        self.stop_btn.setIcon(self.stop_btn._base_icon)
         
         self.next_btn = QPushButton()
-        self.next_btn.setIcon(create_professional_icon("skip_next", icon_size, icon_color))
+        self.next_btn._base_icon = self._create_transparent_icon("skip_next", icon_size, icon_color, 0.7)
+        self.next_btn._hover_icon = create_professional_icon("skip_next", icon_size, icon_color)
+        self.next_btn.setIcon(self.next_btn._base_icon)
         
         self.zoom_out_btn = QPushButton()
-        self.zoom_out_btn.setIcon(create_professional_icon("zoom_out", icon_size, icon_color))
+        self.zoom_out_btn._base_icon = self._create_transparent_icon("zoom_out", icon_size, icon_color, 0.7)
+        self.zoom_out_btn._hover_icon = create_professional_icon("zoom_out", icon_size, icon_color)
+        self.zoom_out_btn.setIcon(self.zoom_out_btn._base_icon)
         
         self.zoom_in_btn = QPushButton()
-        self.zoom_in_btn.setIcon(create_professional_icon("zoom_in", icon_size, icon_color))
+        self.zoom_in_btn._base_icon = self._create_transparent_icon("zoom_in", icon_size, icon_color, 0.7)
+        self.zoom_in_btn._hover_icon = create_professional_icon("zoom_in", icon_size, icon_color)
+        self.zoom_in_btn.setIcon(self.zoom_in_btn._base_icon)
+        
+        # Setup hover behavior for each button
+        for btn in [self.prev_btn, self.pause_btn, self.stop_btn, self.next_btn, self.zoom_out_btn, self.zoom_in_btn]:
+            btn.enterEvent = lambda event, button=btn: self._on_button_enter(event, button)
+            btn.leaveEvent = lambda event, button=btn: self._on_button_leave(event, button)
         
         # Connect signals
         self.prev_btn.clicked.connect(self.previous_clicked.emit)
@@ -315,14 +331,45 @@ class ButtonOverlay(QWidget):
         # If timer is active, show play when paused, pause when running
         icon_type = "play" if (not timer_active or is_paused) else "pause"
         icon_size = 18  # Match the consistent icon size
-        # Use same opacity as other icons
-        icon_color = f"rgba(255, 255, 255, {int(self.icon_base_opacity * 255)})"
-        self.pause_btn.setIcon(create_professional_icon(icon_type, icon_size, icon_color))
+        icon_color = "#ffffff"
+        
+        # Update both base and hover icons
+        self.pause_btn._base_icon = self._create_transparent_icon(icon_type, icon_size, icon_color, 0.7)
+        self.pause_btn._hover_icon = create_professional_icon(icon_type, icon_size, icon_color)
+        self.pause_btn.setIcon(self.pause_btn._base_icon)
     
     def show(self):
         """Override show to start auto-hide timer."""
         super().show()
         self._start_auto_hide_timer()
+    
+    def _create_transparent_icon(self, icon_type, size, color, opacity):
+        """Create an icon with specified opacity applied to the pixmap."""
+        from ..core.image_utils import create_professional_icon
+        from PySide6.QtGui import QIcon, QPixmap, QPainter
+        
+        # Create the base icon
+        base_icon = create_professional_icon(icon_type, size, color)
+        
+        # Get the pixmap and apply opacity
+        base_pixmap = base_icon.pixmap(size, size)
+        transparent_pixmap = QPixmap(size, size)
+        transparent_pixmap.fill(Qt.transparent)
+        
+        painter = QPainter(transparent_pixmap)
+        painter.setOpacity(opacity)
+        painter.drawPixmap(0, 0, base_pixmap)
+        painter.end()
+        
+        return QIcon(transparent_pixmap)
+    
+    def _on_button_enter(self, event, button):
+        """Handle button hover - switch to full opacity icon."""
+        button.setIcon(button._hover_icon)
+        
+    def _on_button_leave(self, event, button):
+        """Handle button leave - switch back to semi-transparent icon."""
+        button.setIcon(button._base_icon)
     
     def enterEvent(self, event):
         """Show controls when mouse enters the overlay."""

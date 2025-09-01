@@ -135,20 +135,20 @@ def create_professional_icon(icon_type, size=24, color="#ffffff"):
                 colored_painter = QPainter(colored_pixmap)
                 colored_painter.setRenderHint(QPainter.Antialiasing, True)
                 
-                # Handle rgba colors by using composition
+                # Use a more reliable approach for recoloring
                 color_obj = QColor(color)
+                
+                # Handle both opaque and transparent colors
                 if color_obj.alpha() < 255:
-                    # For semi-transparent colors, use a different approach
-                    colored_painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
-                    colored_painter.setCompositionMode(QPainter.CompositionMode_DestinationOver)
+                    # For semi-transparent colors, use Multiply blend mode for better results
                     colored_painter.drawPixmap(0, 0, pixmap)
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_Multiply)
+                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
                 else:
-                    # For opaque colors, use the standard approach
-                    colored_painter.setCompositionMode(QPainter.CompositionMode_SourceIn)
-                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
-                    colored_painter.setCompositionMode(QPainter.CompositionMode_DestinationOver)  
+                    # For opaque colors, use the SourceAtop method
                     colored_painter.drawPixmap(0, 0, pixmap)
+                    colored_painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+                    colored_painter.fillRect(colored_pixmap.rect(), color_obj)
                 
                 colored_painter.end()
                 return QIcon(colored_pixmap)
