@@ -12,7 +12,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('app_icon.png', '.'), ('app_icon.ico', '.')],
+    datas=[('app_icon.png', '.'), ('app_icon.ico', '.'), ('app_icon.svg', '.'), ('icons', 'icons')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

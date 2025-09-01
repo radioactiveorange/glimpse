@@ -277,7 +277,7 @@ jobs:
           Priority: optional
           Architecture: ${{ steps.arch-linux.outputs.deb_arch }}
           Depends: libc6, libstdc++6, libqt6core6, libqt6gui6, libqt6widgets6
-          Maintainer: Glimpse Team <noreply@example.com>
+          Maintainer: radioactiveorange <github.com/radioactiveorange>
           Description: Random image viewer for collections
            A cross-platform desktop application for viewing random images from folders
            or collections. Useful for reference studies, browsing large image libraries,
@@ -294,7 +294,7 @@ jobs:
           Source: https://github.com/radioactiveorange/glimpse
 
           Files: *
-          Copyright: 2024 Glimpse Team
+          Copyright: 2025 radioactiveorange
           License: GPL-3.0+
            This program is free software: you can redistribute it and/or modify
            it under the terms of the GNU General Public License as published by

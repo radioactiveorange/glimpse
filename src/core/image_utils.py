@@ -182,26 +182,32 @@ def _create_coded_icon(icon_type, size=24, color="#ffffff"):
     margin = size // 5  # Larger margin for clearer shapes
     
     if icon_type == "previous":
-        # Clear left-pointing triangle (kept for backward compatibility)
-        points = [
-            QPoint(center + margin, margin),
-            QPoint(center + margin, size - margin), 
-            QPoint(margin, center)
-        ]
-        painter.setBrush(brush)
-        painter.setPen(Qt.NoPen)
-        painter.drawPolygon(QPolygon(points))
+        # Chevron pointing left (matches SVG)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Left-pointing chevron: two lines forming <
+        x1, y1 = center + margin//2, margin + 2
+        x2, y2 = margin + 2, center  
+        x3, y3 = center + margin//2, size - margin - 2
+        
+        # Draw the two lines of the chevron
+        painter.drawLine(x1, y1, x2, y2)
+        painter.drawLine(x2, y2, x3, y3)
         
     elif icon_type == "next":
-        # Clear right-pointing triangle (kept for backward compatibility)
-        points = [
-            QPoint(center - margin, margin),
-            QPoint(center - margin, size - margin),
-            QPoint(size - margin, center)
-        ]
-        painter.setBrush(brush)
-        painter.setPen(Qt.NoPen)
-        painter.drawPolygon(QPolygon(points))
+        # Chevron pointing right (matches SVG)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Right-pointing chevron: two lines forming >
+        x1, y1 = center - margin//2, margin + 2
+        x2, y2 = size - margin - 2, center
+        x3, y3 = center - margin//2, size - margin - 2
+        
+        # Draw the two lines of the chevron
+        painter.drawLine(x1, y1, x2, y2)
+        painter.drawLine(x2, y2, x3, y3)
         
     elif icon_type == "pause":
         # Two thick vertical bars with proper spacing
@@ -401,31 +407,29 @@ def _create_coded_icon(icon_type, size=24, color="#ffffff"):
         painter.drawLine(check_x + check_size // 2, check_y + check_size // 2, check_x + check_size * 2, check_y - check_size)
         
     elif icon_type == "shuffle":
-        # Shuffle icon (crossed arrows)
+        # Shuffle icon - diagonal crossing arrows (matches SVG design)
         painter.setBrush(Qt.NoBrush)
         painter.setPen(pen)
         
-        # Arrow sizes
-        arrow_len = (size - 2 * margin) // 3
+        # Arrow head size
         head_size = size // 8
         
-        # Top arrow (left to right)
-        top_y = margin + arrow_len
-        painter.drawLine(margin + arrow_len//2, top_y, size - margin - arrow_len//2, top_y)
-        # Arrow head
-        painter.drawLine(size - margin - arrow_len//2, top_y, 
-                        size - margin - arrow_len//2 - head_size, top_y - head_size//2)
-        painter.drawLine(size - margin - arrow_len//2, top_y, 
-                        size - margin - arrow_len//2 - head_size, top_y + head_size//2)
+        # Main diagonal crossing line (bottom-left to top-right)
+        painter.drawLine(margin + 2, size - margin - 2, size - margin - 2, margin + 2)
         
-        # Bottom arrow (right to left)
-        bottom_y = size - margin - arrow_len
-        painter.drawLine(size - margin - arrow_len//2, bottom_y, margin + arrow_len//2, bottom_y)
-        # Arrow head
-        painter.drawLine(margin + arrow_len//2, bottom_y, 
-                        margin + arrow_len//2 + head_size, bottom_y - head_size//2)
-        painter.drawLine(margin + arrow_len//2, bottom_y, 
-                        margin + arrow_len//2 + head_size, bottom_y + head_size//2)
+        # Top-right arrow components
+        # Top horizontal line with arrow
+        painter.drawLine(size - margin - size//3, margin + 2, size - margin - 2, margin + 2)
+        painter.drawLine(size - margin - 2, margin + 2, size - margin - head_size, margin + 2 + head_size//2)
+        # Right vertical line with arrow  
+        painter.drawLine(size - margin - 2, margin + 2, size - margin - 2, margin + size//3)
+        painter.drawLine(size - margin - 2, margin + size//3, size - margin - 2 - head_size//2, margin + size//3 - head_size)
+        
+        # Bottom-left arrow components  
+        painter.drawLine(margin + 2, size - margin - size//3, margin + 2, size - margin - 2)
+        painter.drawLine(margin + 2, size - margin - 2, margin + 2 + head_size//2, size - margin - 2 - head_size)
+        painter.drawLine(margin + 2, size - margin - 2, margin + size//3, size - margin - 2)
+        painter.drawLine(margin + size//3, size - margin - 2, margin + size//3 - head_size, size - margin - 2 - head_size//2)
     
     painter.end()
     return QIcon(pixmap)
