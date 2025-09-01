@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="app_icon.png" alt="Glimpse" width="128" height="128">
+</p>
+
 # Glimpse 👁️
 
 **Random image viewer for collections**
