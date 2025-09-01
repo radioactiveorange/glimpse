@@ -1,3 +1,9 @@
+## [1.1.2](https://github.com/radioactiveorange/glimpse/compare/v1.1.1...v1.1.2) (2025-09-01)
+
+### Bug Fixes
+
+* use proper extensions for the release artifacts ([da554d5](https://github.com/radioactiveorange/glimpse/commit/da554d5b61084a4dbafdbc722788a0d2f85891cf))
+
 ## [1.1.1](https://github.com/radioactiveorange/glimpse/compare/v1.1.0...v1.1.1) (2025-08-30)
 
 ### Bug Fixes
