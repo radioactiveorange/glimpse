@@ -210,9 +210,13 @@ jobs:
             echo "deb_arch=amd64" >> $GITHUB_OUTPUT
           fi
           
-      - name: Create tar.gz archive (Linux)
+      - name: Create tar.gz archive and rename binary (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
+          # Create renamed binary
+          cp dist/glimpse glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}
+          
+          # Create tar.gz archive
           cd dist
           tar -czf ../glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.tar.gz glimpse
           cd ..
@@ -306,9 +310,12 @@ jobs:
             echo "chip=intel" >> $GITHUB_OUTPUT
           fi
           
-      - name: Create DMG (macOS)
+      - name: Rename executable and create DMG (macOS)
         if: matrix.os == 'macos-latest'
         run: |
+          # Create renamed binary
+          cp dist/glimpse glimpse-${{ needs.semantic-release.outputs.new-release-version }}-macos-${{ steps.arch-macos.outputs.arch }}
+          
           # Create a temporary directory for the DMG contents
           mkdir -p dmg-contents
           cp dist/glimpse dmg-contents/
@@ -337,11 +344,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: glimpse-${{ matrix.name }}
-          path: |
-            glimpse-*.exe
-            glimpse-*.tar.gz
-            glimpse-*.deb
-            glimpse-*.dmg
+          path: glimpse-*
+          if-no-files-found: error
 
   # Create the actual release with binaries
   release:
