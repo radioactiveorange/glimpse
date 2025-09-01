@@ -1,3 +1,13 @@
+## [1.2.0](https://github.com/radioactiveorange/glimpse/compare/v1.1.2...v1.2.0) (2025-09-01)
+
+### Features
+
+* auto-hide tweak and refactor adaptive background ([e5274b8](https://github.com/radioactiveorange/glimpse/commit/e5274b857dd64107820cd82c7153e9e33ff2857b))
+
+### Documentation
+
+* add icon to readme ([5496bc6](https://github.com/radioactiveorange/glimpse/commit/5496bc63566f7f0f803a01923652da7162fd7ae9))
+
 ## [1.1.2](https://github.com/radioactiveorange/glimpse/compare/v1.1.1...v1.1.2) (2025-09-01)
 
 ### Bug Fixes
