@@ -1,3 +1,9 @@
+## [1.3.3](https://github.com/radioactiveorange/glimpse/compare/v1.3.2...v1.3.3) (2025-09-01)
+
+### Bug Fixes
+
+* debian package name ([9b2ea81](https://github.com/radioactiveorange/glimpse/commit/9b2ea818a0b2c2a0cebbe7893d443367d5192429))
+
 ## [1.3.2](https://github.com/radioactiveorange/glimpse/compare/v1.3.1...v1.3.2) (2025-09-01)
 
 ### Bug Fixes
