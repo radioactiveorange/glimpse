@@ -248,7 +248,7 @@ jobs:
           mkdir -p deb-package/usr/bin
           mkdir -p deb-package/usr/share/applications
           mkdir -p deb-package/usr/share/pixmaps
-          mkdir -p deb-package/usr/share/doc/glimpse
+          mkdir -p deb-package/usr/share/doc/glimpse-viewer
           
           # Copy executable
           cp dist/glimpse deb-package/usr/bin/
@@ -271,7 +271,7 @@ jobs:
           
           # Create control file
           cat > deb-package/DEBIAN/control << EOF
-          Package: glimpse
+          Package: glimpse-viewer
           Version: ${{ needs.semantic-release.outputs.new-release-version }}
           Section: graphics
           Priority: optional
@@ -288,7 +288,7 @@ jobs:
           EOF
           
           # Create copyright file
-          cat > deb-package/usr/share/doc/glimpse/copyright << EOF
+          cat > deb-package/usr/share/doc/glimpse-viewer/copyright << EOF
           Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
           Upstream-Name: glimpse
           Source: https://github.com/radioactiveorange/glimpse
@@ -314,7 +314,7 @@ jobs:
           EOF
           
           # Build the .deb package
-          dpkg-deb --build deb-package glimpse-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.deb
+          dpkg-deb --build deb-package glimpse-viewer-${{ needs.semantic-release.outputs.new-release-version }}-linux-${{ steps.arch-linux.outputs.arch }}.deb
 
       - name: Get architecture (macOS)
         if: matrix.os == 'macos-latest'
