@@ -342,8 +342,19 @@ class GlimpseViewer(QMainWindow):
         # Apply zoom to the cached image
         self._update_zoom_display()
         
-        # Show button overlay when image is loaded
-        self.button_overlay.show()
+        # Show button overlay when image is loaded (but not on keyboard navigation)
+        # Check if this display was triggered by keyboard navigation
+        import inspect
+        calling_methods = [frame.function for frame in inspect.stack()]
+        keyboard_triggered = any(method in calling_methods for method in ['show_previous_image', 'show_next_image', 'keyPressEvent'])
+        
+        if not keyboard_triggered:
+            # Show controls for mouse navigation, new images, etc.
+            self.button_overlay.show_for_new_image()
+        # Always show for first image load or new collection/folder
+        elif not hasattr(self, '_first_image_shown') or not self._first_image_shown:
+            self.button_overlay.show_for_new_image()
+            self._first_image_shown = True
         
         # Set background according to settings
         mode = self.settings.value("bg_mode", "Black")
@@ -558,9 +569,7 @@ class GlimpseViewer(QMainWindow):
         self._timer_paused = False  # Reset pause state when toggling
         self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
         self._reset_timer()
-        # Always show button overlay when image is loaded, regardless of timer state
-        if self.current_image:
-            self.button_overlay.show()
+        # Don't automatically show button overlay on timer toggle
         # Update button overlay to reflect new state
         self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
@@ -617,17 +626,14 @@ class GlimpseViewer(QMainWindow):
             self._update_progress()
             self.timer.start()
             self.progress_bar.show()
-            if self.current_image:
-                self.button_overlay.show()
+            # Don't automatically show button overlay on timer reset
             self.button_overlay.set_pause_state(False, self._auto_advance_active)
         else:
             self.timer.stop()
             self._timer_paused = False
             self.progress_bar.set_remaining_time(0)
             self.progress_bar.hide()
-            # Keep button overlay visible even when timer is disabled
-            if self.current_image:
-                self.button_overlay.show()
+            # Don't automatically show button overlay when timer disabled
             self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def _on_timer_tick(self):
@@ -913,6 +919,9 @@ class GlimpseViewer(QMainWindow):
         self.flipped_h = False
         self.flipped_v = False
         
+        # Reset first image flag to show controls for new collection
+        self._first_image_shown = False
+        
         # Update UI
         self.update_image_info()
         self._update_title_for_collection()
@@ -956,6 +965,9 @@ class GlimpseViewer(QMainWindow):
         # Reset transformations
         self.flipped_h = False
         self.flipped_v = False
+        
+        # Reset first image flag to show controls for new folder
+        self._first_image_shown = False
         
         # Update UI
         self.update_image_info()

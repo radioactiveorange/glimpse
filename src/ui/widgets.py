@@ -222,6 +222,7 @@ class ButtonOverlay(QWidget):
         self._hide_timer.timeout.connect(self._auto_hide)
         self._hide_delay = 3000  # 3 seconds
         self._is_auto_hiding = False
+        self._manually_hidden = False  # Track if user manually hid controls
         
         # Enable mouse tracking
         self.setMouseTracking(True)
@@ -337,6 +338,7 @@ class ButtonOverlay(QWidget):
         """Show the controls and cancel auto-hide."""
         self._hide_timer.stop()
         self._is_auto_hiding = False
+        self._manually_hidden = False  # Reset manual hide when mouse moves
         if self.isHidden():
             super().show()  # Use super().show() to avoid triggering auto-hide timer
         # Restart the auto-hide timer
@@ -351,4 +353,10 @@ class ButtonOverlay(QWidget):
     def _auto_hide(self):
         """Hide the controls automatically."""
         self._is_auto_hiding = True
+        # Don't set _manually_hidden for auto-hide, only for explicit hiding
         self.hide()
+    
+    def show_for_new_image(self):
+        """Show controls explicitly for new image loading (resets manual hide state)."""
+        self._manually_hidden = False  # Reset manual hide state
+        self._show_controls()

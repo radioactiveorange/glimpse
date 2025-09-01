@@ -12,7 +12,7 @@ from ..core.image_utils import IMAGE_EXTENSIONS
 class ImageLoadingWorker(QThread):
     """Worker thread for loading images asynchronously."""
     
-    progress_updated = Signal(int, int, str)  # current, total, current_folder
+    progress_updated = Signal(int, int, str)  # current_images, estimated_total, current_folder
     loading_finished = Signal(list)  # List of image paths
     
     def __init__(self, paths: List[str]):
@@ -29,18 +29,12 @@ class ImageLoadingWorker(QThread):
         all_images = []
         self._current_image_count = 0
         
-        # First pass: count total folders for better progress indication
-        total_folders = 0
-        for base_path in self.paths:
-            if self._should_stop:
-                return
-            if os.path.exists(base_path):
-                for root, dirs, files in os.walk(base_path):
-                    total_folders += 1
+        # First pass: estimate total images by sampling folders
+        estimated_total = self._estimate_total_images()
+        if self._should_stop:
+            return
         
-        current_folder = 0
-        
-        # Second pass: actually collect images
+        # Second pass: actually collect images with better progress tracking
         for base_path in self.paths:
             if self._should_stop:
                 return
@@ -52,7 +46,6 @@ class ImageLoadingWorker(QThread):
                 if self._should_stop:
                     return
                 
-                current_folder += 1
                 folder_name = os.path.basename(root) or os.path.basename(base_path)
                 
                 # Process files in current directory
@@ -64,15 +57,57 @@ class ImageLoadingWorker(QThread):
                         all_images.append(os.path.join(root, filename))
                         self._current_image_count += 1
                         
-                        # Emit progress every 100 images for performance
-                        if self._current_image_count % 100 == 0:
-                            self.progress_updated.emit(current_folder, total_folders, folder_name)
+                        # Emit progress more frequently for better user feedback
+                        if self._current_image_count % 50 == 0 or self._current_image_count % 100 == 1:
+                            # Update estimate if we've exceeded it
+                            if self._current_image_count > estimated_total:
+                                estimated_total = int(self._current_image_count * 1.2)
+                            self.progress_updated.emit(self._current_image_count, estimated_total, folder_name)
                 
                 # Update progress after each folder
-                self.progress_updated.emit(current_folder, total_folders, folder_name)
+                if self._current_image_count > estimated_total:
+                    estimated_total = int(self._current_image_count * 1.2)
+                self.progress_updated.emit(self._current_image_count, estimated_total, folder_name)
         
         if not self._should_stop:
             self.loading_finished.emit(all_images)
+    
+    def _estimate_total_images(self):
+        """Estimate total number of images by sampling folders."""
+        total_estimate = 0
+        folders_sampled = 0
+        max_sample_folders = 10  # Sample up to 10 folders for estimation
+        
+        for base_path in self.paths:
+            if self._should_stop:
+                return 0
+            if not os.path.exists(base_path):
+                continue
+                
+            for root, dirs, files in os.walk(base_path):
+                if self._should_stop:
+                    return 0
+                
+                # Sample folder to estimate
+                image_count = sum(1 for f in files 
+                                if os.path.splitext(f)[1].lower() in IMAGE_EXTENSIONS)
+                total_estimate += image_count
+                folders_sampled += 1
+                
+                # If we've sampled enough, estimate the rest
+                if folders_sampled >= max_sample_folders:
+                    # Count remaining folders
+                    remaining_folders = 0
+                    for remaining_root, remaining_dirs, remaining_files in os.walk(base_path):
+                        remaining_folders += 1
+                    remaining_folders -= folders_sampled
+                    
+                    if folders_sampled > 0:
+                        avg_per_folder = total_estimate / folders_sampled
+                        total_estimate += int(avg_per_folder * remaining_folders)
+                    break
+        
+        return max(total_estimate, 100)  # Ensure we have at least some estimate
 
 
 class LoadingDialog(QDialog):
@@ -177,20 +212,19 @@ class LoadingDialog(QDialog):
                 value = self.animation_value
             self.progress_bar.setValue(value)
     
-    def on_progress_updated(self, current_folder: int, total_folders: int, folder_name: str):
+    def on_progress_updated(self, current_images: int, estimated_total: int, folder_name: str):
         """Update progress display."""
-        if total_folders > 0:
+        if estimated_total > 0:
             # Switch to determinate progress
             self.animation_timer.stop()
-            self.progress_bar.setMaximum(total_folders)
-            self.progress_bar.setValue(current_folder)
+            self.progress_bar.setMaximum(estimated_total)
+            self.progress_bar.setValue(current_images)
             
-            progress_percent = int((current_folder / total_folders) * 100)
+            progress_percent = int((current_images / estimated_total) * 100)
             self.info_label.setText(f"Scanning: {folder_name}")
             
             # Update image count
-            if hasattr(self.worker, '_current_image_count'):
-                self.count_label.setText(f"Found: {self.worker._current_image_count} images")
+            self.count_label.setText(f"Found: {current_images} images")
     
     def on_loading_finished(self, images: List[str]):
         """Handle completion of image loading."""

@@ -32,29 +32,81 @@ def emoji_icon(emoji="🎲", size=128):
 
 
 def set_adaptive_bg(image_label, img_path):
-    """Set adaptive background color based on dominant color in image."""
+    """Set adaptive background color based on dominant color in image with better contrast."""
     try:
         pixmap = QPixmap(img_path)
         if pixmap.isNull():
             return
         image = pixmap.toImage()
         w, h = image.width(), image.height()
-        # Downsample for speed
-        step = max(1, min(w, h) // 64)
+        
+        # Sample colors from entire image, but with reasonable downsampling
+        step = max(1, min(w, h) // 50)  
         colors = {}
+        
+        # Collect colors from entire image
         for x in range(0, w, step):
             for y in range(0, h, step):
-                c = QColor(image.pixel(x, y)).rgb() & 0xFFFFFF
-                colors[c] = colors.get(c, 0) + 1
+                if x < w and y < h:
+                    pixel = image.pixel(x, y)
+                    color = QColor(pixel)
+                    rgb = (color.red(), color.green(), color.blue())
+                    colors[rgb] = colors.get(rgb, 0) + 1
+        
         if not colors:
             return
-        dom_rgb = max(colors, key=colors.get)
-        r = (dom_rgb >> 16) & 0xFF
-        g = (dom_rgb >> 8) & 0xFF
-        b = dom_rgb & 0xFF
+            
+        # Get the most common colors
+        sorted_colors = sorted(colors.items(), key=lambda x: x[1], reverse=True)
+        
+        # Try the top 5 most common colors and pick the best one for background
+        best_color = None
+        best_score = -1
+        
+        for (r, g, b), count in sorted_colors[:5]:
+            # Calculate perceptual brightness
+            brightness = 0.2126 * r + 0.7152 * g + 0.0722 * b
+            
+            # Calculate saturation
+            max_val = max(r, g, b)
+            min_val = min(r, g, b)
+            saturation = (max_val - min_val) / max_val if max_val > 0 else 0
+            
+            # Score based on how good this color is for a background
+            # Prefer darker colors (good contrast with white text)
+            darkness_score = (255 - brightness) / 255
+            
+            # Prefer moderate saturation (not too gray, not too vivid)
+            saturation_score = saturation if saturation < 0.5 else (1 - saturation)
+            
+            # Weight frequency
+            frequency_score = count / sorted_colors[0][1]  # Normalize to most common
+            
+            # Combined score
+            score = darkness_score * 0.5 + saturation_score * 0.3 + frequency_score * 0.2
+            
+            if score > best_score and brightness < 200:  # Not too bright
+                best_score = score
+                best_color = (r, g, b)
+        
+        if best_color:
+            r, g, b = best_color
+            # Darken the color for better contrast
+            r = int(r * 0.7)
+            g = int(g * 0.7) 
+            b = int(b * 0.7)
+        else:
+            # Fallback: use the most common color but darkened significantly
+            r, g, b = sorted_colors[0][0]
+            r = int(r * 0.4)
+            g = int(g * 0.4)
+            b = int(b * 0.4)
+            
         image_label.parentWidget().setStyleSheet(f"background-color: rgb({r},{g},{b});")
-    except Exception:
-        pass
+        
+    except Exception as e:
+        # Fallback to dark gray on any error
+        image_label.parentWidget().setStyleSheet("background-color: rgb(40,40,40);")
 
 
 def create_professional_icon(icon_type, size=24, color="#ffffff"):
