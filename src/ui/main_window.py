@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QMenu, QInputDialog, QDialog, QApplication, QTableWidget, 
     QTableWidgetItem, QHeaderView, QDialogButtonBox, QLabel as QDialogLabel
 )
-from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter
+from PySide6.QtGui import QPixmap, QImage, QTransform, QAction, QPainter, QColor
 from PySide6.QtCore import Qt, QTimer, QSize, QSettings, QThread, Signal
 
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
@@ -649,7 +649,10 @@ class GlimpseViewer(QMainWindow):
         if self.pan_offset_x != 0 or self.pan_offset_y != 0:
             # Create a canvas the size of the label
             canvas = QPixmap(self.image_label.size())
-            canvas.fill(Qt.black)  # Use black background instead of transparent
+            
+            # Get the appropriate background color based on current mode
+            bg_color = self._get_current_background_color()
+            canvas.fill(bg_color)
             
             # Paint the scaled image with offset
             painter = QPainter(canvas)
@@ -753,6 +756,30 @@ class GlimpseViewer(QMainWindow):
             next_mode = modes[0]
         
         self.change_bg_mode(next_mode)
+    
+    def _get_current_background_color(self):
+        """Get the current background color as QColor based on the active mode."""
+        mode = self.settings.value("bg_mode", "Black")
+        
+        if mode == "Gray":
+            return QColor(0x44, 0x44, 0x44)  # #444444
+        elif mode == "Adaptive Color":
+            # Try to extract the current background color from the parent widget
+            parent = self.image_label.parentWidget()
+            if parent:
+                style = parent.styleSheet()
+                # Look for rgb() or background-color in the stylesheet
+                import re
+                rgb_match = re.search(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)', style)
+                if rgb_match:
+                    r, g, b = map(int, rgb_match.groups())
+                    return QColor(r, g, b)
+            
+            # Fallback to dark gray if we can't extract the adaptive color
+            return QColor(40, 40, 40)
+        else:
+            # Default to black
+            return QColor(0, 0, 0)
     
     def show_keyboard_shortcuts(self):
         """Show the keyboard shortcuts help dialog."""
