@@ -1,3 +1,13 @@
+## [1.5.1](https://github.com/radioactiveorange/glimpse/compare/v1.5.0...v1.5.1) (2025-09-02)
+
+### Bug Fixes
+
+* bug when panning with adaptive background ([2581749](https://github.com/radioactiveorange/glimpse/commit/2581749e2acb2db9128ad62996a5f2fcdf86edd0))
+
+### Documentation
+
+* update readme ([d48ad74](https://github.com/radioactiveorange/glimpse/commit/d48ad748176fd2dea1dd2276d98aa73330d37c45))
+
 ## [1.5.0](https://github.com/radioactiveorange/glimpse/compare/v1.4.1...v1.5.0) (2025-09-02)
 
 ### Features
