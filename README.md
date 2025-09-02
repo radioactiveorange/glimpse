@@ -32,7 +32,9 @@ A cross-platform desktop application for viewing random images from folders or c
 ### 🎲 **Collections & Smart Sorting**
 - Organize multiple folders into collections
 - **Flexible sorting options**: Random (shuffle), Alphabetical (name), Full path, File size, Date modified
+- **Natural sorting**: Handles numbered files intelligently (image1.jpg, image2.jpg, image10.jpg)
 - **Ascending/descending order** for all sort methods except random
+- Override collection sort settings when viewing
 - Quick shuffle mode for single folders
 - History navigation with thumbnail panel
 
@@ -153,8 +155,10 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 ### Collection Management
 - Professional startup dialog with ShuffleBird-inspired design
 - **Smart sorting system**: Choose between random shuffle or organized viewing (name, path, size, date)
+- **Natural/Human sorting**: Properly orders numbered files (image1, image2, image10 instead of image1, image10, image2)
 - **Flexible sort orders**: Ascending/descending options for structured browsing
-- Edit collections (rename, manage folders) 
+- **Sort override**: Change sorting when opening collections without editing the collection
+- Edit collections (rename, manage folders, update sort preferences)
 - Delete collections with confirmation
 - Auto-sorted by recent usage
 - Quick folder location access button
@@ -202,15 +206,23 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ### Welcome Screen & Collections
 ![Welcome Screen](screenshots/welcome-screen.png)
+*Professional startup dialog for managing collections and quick folder access*
+
+### Collection Creation & Editing
+![Collection Dialog](screenshots/collection-dialog.png)
+*Comprehensive collection management with multi-folder support and sorting options*
 
 ### Main Viewer
 ![Main Viewer](screenshots/main-viewer.png)
+*Clean image viewing interface with history panel and media controls*
 
-### Media Controls
+### Media Controls & Timer
 ![Media Controls](screenshots/media-controls.png)
+*Timer controls for auto-advance functionality with play/pause/stop*
 
-### Context Menu
+### Context Menu & Options
 ![Context Menu](screenshots/context-menu.png)
+*Right-click context menu with image transformations and viewing options*
 
 ---
 
