@@ -450,5 +450,63 @@ def _create_coded_icon(icon_type, size=24, color="#ffffff"):
         tab_y = folder_y - tab_height // 2
         painter.drawRoundedRect(margin, tab_y, tab_width, tab_height, 1, 1)
     
+    elif icon_type == "sort_asc":
+        # Sort ascending icon (triangle pointing up with lines)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Three horizontal lines getting shorter going up (representing sorted data)
+        line_spacing = size // 6
+        base_width = size - 2 * margin
+        
+        for i in range(3):
+            y = margin + size // 4 + i * line_spacing
+            width = base_width - (i * base_width // 4)  # Each line gets shorter
+            x = margin + (base_width - width) // 2  # Center the line
+            painter.drawLine(x, y, x + width, y)
+        
+        # Small triangle pointing up (indicating ascending direction)
+        triangle_size = size // 6
+        triangle_x = center
+        triangle_y = margin + size // 8
+        
+        points = [
+            QPoint(triangle_x, triangle_y),  # Top point
+            QPoint(triangle_x - triangle_size//2, triangle_y + triangle_size),  # Bottom left
+            QPoint(triangle_x + triangle_size//2, triangle_y + triangle_size)   # Bottom right
+        ]
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        painter.drawPolygon(QPolygon(points))
+    
+    elif icon_type == "sort_desc":
+        # Sort descending icon (triangle pointing down with lines)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(pen)
+        
+        # Three horizontal lines getting longer going down (representing sorted data)
+        line_spacing = size // 6
+        base_width = size - 2 * margin
+        
+        for i in range(3):
+            y = margin + size // 4 + i * line_spacing
+            width = base_width - ((2-i) * base_width // 4)  # Each line gets longer
+            x = margin + (base_width - width) // 2  # Center the line
+            painter.drawLine(x, y, x + width, y)
+        
+        # Small triangle pointing down (indicating descending direction)
+        triangle_size = size // 6
+        triangle_x = center
+        triangle_y = size - margin - size // 8
+        
+        points = [
+            QPoint(triangle_x - triangle_size//2, triangle_y - triangle_size),  # Top left
+            QPoint(triangle_x + triangle_size//2, triangle_y - triangle_size),  # Top right
+            QPoint(triangle_x, triangle_y)  # Bottom point
+        ]
+        painter.setBrush(brush)
+        painter.setPen(Qt.NoPen)
+        painter.drawPolygon(QPolygon(points))
+    
     painter.end()
     return QIcon(pixmap)

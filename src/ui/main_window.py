@@ -27,7 +27,7 @@ class KeyboardShortcutsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Keyboard Shortcuts")
         self.setModal(True)
-        self.resize(400, 450)
+        self.resize(450, 400)
         
         # Center the dialog
         if parent:
@@ -159,6 +159,7 @@ class GlimpseViewer(QMainWindow):
         self.current_image = None
         self.current_index = -1
         self.history_index = -1
+        self.sorted_collection_index = 0  # For sequential navigation in sorted collections
         self.timer_interval = self.settings.value("timer_interval", 60, type=int)
         self.timer_remaining = 0
         self._auto_advance_active = self.settings.value("auto_advance_enabled", False, type=bool)
@@ -451,6 +452,12 @@ class GlimpseViewer(QMainWindow):
             return
         self.flipped_h = False
         self.flipped_v = False
+        
+        # Check if we're using a sorted collection (not random)
+        if self.current_collection and self.current_collection.sort_method != "random":
+            self.show_next_sorted_image()
+            return
+        
         available = [img for img in self.images if img not in self.history]
         if not available:
             self.history.clear()
@@ -460,6 +467,26 @@ class GlimpseViewer(QMainWindow):
         # Note: Removed expensive file size checking that was causing freezing with large collections
         
         img_path = random.choice(available)
+        self.display_image(img_path)
+        self.add_to_history(img_path)
+        self.current_image = img_path
+        self.update_image_info(img_path)
+        if self._auto_advance_active:
+            self.timer_remaining = self.timer_interval
+            self._update_progress()
+    
+    def show_next_sorted_image(self):
+        """Show the next image in a sorted collection."""
+        if not self.images:
+            return
+        
+        # Move to next image in sorted order
+        if self.sorted_collection_index >= len(self.images):
+            self.sorted_collection_index = 0  # Loop back to start
+        
+        img_path = self.images[self.sorted_collection_index]
+        self.sorted_collection_index += 1
+        
         self.display_image(img_path)
         self.add_to_history(img_path)
         self.current_image = img_path
@@ -1063,12 +1090,17 @@ class GlimpseViewer(QMainWindow):
         self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
         self.settings.setValue("timer_interval", self.timer_interval)
         
-        # Show loading dialog for large collections
-        loading_dialog = LoadingDialog(collection.paths, self)
-        if loading_dialog.exec() == QDialog.Accepted:
-            self.images = loading_dialog.get_images()
+        # For sorted collections (not random), we need to get sorted images
+        if collection.sort_method == "random":
+            # Show loading dialog for large collections and shuffle after loading
+            loading_dialog = LoadingDialog(collection.paths, self)
+            if loading_dialog.exec() == QDialog.Accepted:
+                self.images = loading_dialog.get_images()
+            else:
+                self.images = []  # User cancelled loading
         else:
-            self.images = []  # User cancelled loading
+            # Get sorted images directly from collection
+            self.images = collection.get_sorted_images()
         
         # Clear history
         self.history.clear()
@@ -1076,6 +1108,7 @@ class GlimpseViewer(QMainWindow):
         self.history_list.repaint()
         self.current_image = None
         self.history_index = -1
+        self.sorted_collection_index = 0  # Reset for new collection
         
         # Reset transformations
         self.flipped_h = False
@@ -1123,6 +1156,7 @@ class GlimpseViewer(QMainWindow):
         self.history_list.repaint()
         self.current_image = None
         self.history_index = -1
+        self.sorted_collection_index = 0  # Reset for new collection
         
         # Reset transformations
         self.flipped_h = False

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Standard triangle pointing up for ascending sort -->
+  <path d="M6 15 L12 7 L18 15 Z" fill="white"/>
+</svg>

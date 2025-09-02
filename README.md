@@ -23,13 +23,16 @@ A cross-platform desktop application for viewing random images from folders or c
 - [🛠️ Advanced Features](#️-advanced-features)
 - [🏗️ Technical Details](#️-technical-details)
 - [🎨 Screenshots](#-screenshots)
+- [🙏 Inspiration](#-inspiration)
 - [🤝 Contributing](#-contributing)
 - [📝 License](#-license)
 
 ## ✨ Features
 
-### 🎲 **Collections & Random Viewing**
+### 🎲 **Collections & Smart Sorting**
 - Organize multiple folders into collections
+- **Flexible sorting options**: Random (shuffle), Alphabetical (name), Full path, File size, Date modified
+- **Ascending/descending order** for all sort methods except random
 - Quick shuffle mode for single folders
 - History navigation with thumbnail panel
 
@@ -149,6 +152,8 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ### Collection Management
 - Professional startup dialog with ShuffleBird-inspired design
+- **Smart sorting system**: Choose between random shuffle or organized viewing (name, path, size, date)
+- **Flexible sort orders**: Ascending/descending options for structured browsing
 - Edit collections (rename, manage folders) 
 - Delete collections with confirmation
 - Auto-sorted by recent usage
@@ -206,6 +211,20 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ### Context Menu
 ![Context Menu](screenshots/context-menu.png)
+
+---
+
+## 🙏 Inspiration
+
+This project was inspired by and references several excellent applications:
+
+### Primary Inspirations
+- **[ShuffleBird](https://github.com/AvantinumCode/ShuffleBird)** - Random image viewer with clean interface design. Glimpse's startup dialog and professional UI aesthetic draw inspiration from ShuffleBird's polished approach to image collection management.
+
+- **[GestureSesh](https://github.com/AvantinumCode/GestureSesh)** - Figure drawing application with timer functionality. The timer system and media-style controls in Glimpse were influenced by GestureSesh's focus on timed practice sessions.
+
+### Design Philosophy
+We believe in building upon the excellent work of the open source community. These projects provided valuable insights into user experience design for image viewing applications and helped shape Glimpse's approach to collection management and viewing workflows.
 
 ---
 

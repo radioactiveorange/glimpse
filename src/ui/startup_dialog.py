@@ -5,7 +5,7 @@ import sys
 import subprocess
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, 
-    QListWidgetItem, QFileDialog, QInputDialog, QMessageBox, QWidget,
+    QListWidgetItem, QFileDialog, QMessageBox, QWidget,
     QSplitter, QTextEdit, QGroupBox, QSizePolicy, QApplication
 )
 from PySide6.QtGui import QFont, QDesktopServices
@@ -13,7 +13,8 @@ from PySide6.QtCore import Qt, Signal, QTimer, QUrl
 
 from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
-from .timer_dialog import TimerConfigDialog
+from .timer_dialog import ViewingSettingsDialog
+from .collection_dialog import CollectionDialog
 from .loading_dialog import LoadingDialog
 from .styles import create_standard_button, create_dialog_action_button
 from ..version import get_version
@@ -254,6 +255,19 @@ class StartupDialog(QDialog):
             details = f"<b>{collection.name}</b><br><br>"
             details += f"<b>Folders:</b> {len(collection.paths)}<br>"
             details += f"<b>Total Images:</b> {collection.image_count}<br>"
+            
+            # Show sorting information
+            sort_display = {
+                "random": "Random (shuffle)",
+                "name": "Name (alphabetical)",
+                "path": "Full path",
+                "size": "File size",
+                "date": "Date modified"
+            }
+            sort_method_display = sort_display.get(collection.sort_method, collection.sort_method)
+            if collection.sort_method != "random" and collection.sort_descending:
+                sort_method_display += " (descending)"
+            details += f"<b>Sort Order:</b> {sort_method_display}<br>"
             if collection.last_used:
                 from datetime import datetime
                 try:
@@ -286,49 +300,34 @@ class StartupDialog(QDialog):
             self.open_selected_collection()
     
     def create_new_collection(self):
-        """Create a new collection."""
-        name, ok = QInputDialog.getText(self, "New Collection", "Collection name:")
-        if not ok or not name.strip():
-            return
-        
-        name = name.strip()
-        if self.collection_manager.collection_exists(name):
-            QMessageBox.warning(self, "Collection Exists", 
-                              f"A collection named '{name}' already exists.")
-            return
-        
-        # Select folders with better UX
-        folders = []
-        
-        # Start with first folder
-        first_folder = QFileDialog.getExistingDirectory(self, f"Select first folder for '{name}'")
-        if not first_folder:
-            return
-        
-        folders.append(first_folder)
-        
-        # Ask if user wants to add more folders
-        while True:
-            reply = QMessageBox.question(self, "Add Another Folder?", 
-                                       f"Collection '{name}' currently has {len(folders)} folder(s).\n\n"
-                                       f"Would you like to add another folder?",
-                                       QMessageBox.Yes | QMessageBox.No,
-                                       QMessageBox.No)
-            
-            if reply == QMessageBox.Yes:
-                additional_folder = QFileDialog.getExistingDirectory(self, f"Select additional folder for '{name}'")
-                if additional_folder and additional_folder not in folders:
-                    folders.append(additional_folder)
-                elif additional_folder in folders:
-                    QMessageBox.information(self, "Folder Already Added", 
-                                          "This folder is already part of the collection.")
-            else:
-                break
-        
-        # Create collection with loading dialog for large collections
-        self._create_collection_with_loading(name, folders)
+        """Create a new collection using the comprehensive collection dialog."""
+        collection_dialog = CollectionDialog(self)
+        if collection_dialog.exec() == QDialog.Accepted:
+            try:
+                # Get all the data from the dialog
+                collection_data = collection_dialog.get_collection_data()
+                timer_enabled, timer_interval = collection_dialog.get_timer_settings()
+                
+                # Check if collection name already exists
+                if self.collection_manager.collection_exists(collection_data['name']):
+                    QMessageBox.warning(self, "Collection Exists", 
+                                      f"A collection named '{collection_data['name']}' already exists.")
+                    return
+                
+                # Create collection with loading dialog for large collections
+                self._create_collection_with_loading(
+                    collection_data['name'],
+                    collection_data['paths'],
+                    collection_data['sort_method'],
+                    collection_data['sort_descending']
+                )
+                
+            except ValueError as e:
+                QMessageBox.warning(self, "Invalid Input", str(e))
+        # If dialog was cancelled, just return (keep startup dialog open)
     
-    def _create_collection_with_loading(self, name: str, folders: list):
+    def _create_collection_with_loading(self, name: str, folders: list, sort_method: str = "random", 
+                                       sort_descending: bool = False):
         """Create collection with loading dialog for progress indication."""
         # First create the collection without image count
         if self.collection_manager.collection_exists(name):
@@ -341,7 +340,7 @@ class StartupDialog(QDialog):
         if loading_dialog.exec() == QDialog.Accepted:
             # Get the loaded images and create collection
             images = loading_dialog.get_images()
-            collection = Collection(name, folders)
+            collection = Collection(name, folders, sort_method=sort_method, sort_descending=sort_descending)
             collection.image_count = len(images)
             
             if self.collection_manager.save_collection(collection):
@@ -357,8 +356,34 @@ class StartupDialog(QDialog):
                 QMessageBox.critical(self, "Error", "Failed to create collection.")
         # If dialog was cancelled, just return without creating collection
     
+    def _update_collection_with_loading(self, collection):
+        """Update collection image count with loading dialog for progress indication."""
+        # Show loading dialog for image counting
+        loading_dialog = LoadingDialog(collection.paths, self)
+        
+        if loading_dialog.exec() == QDialog.Accepted:
+            # Get the loaded images and update count
+            images = loading_dialog.get_images()
+            collection.image_count = len(images)
+            
+            if self.collection_manager.save_collection(collection):
+                self.refresh_collections()
+                # Select the updated collection
+                for i in range(self.collections_list.count()):
+                    item = self.collections_list.item(i)
+                    if item.data(Qt.UserRole) and item.data(Qt.UserRole).name == collection.name:
+                        self.collections_list.setCurrentItem(item)
+                        self.on_collection_selected(item)
+                        break
+            else:
+                QMessageBox.critical(self, "Error", "Failed to save collection.")
+        else:
+            # User cancelled loading, revert changes or show warning
+            QMessageBox.information(self, "Update Cancelled", 
+                                  "Collection update was cancelled. The collection was not saved.")
+    
     def edit_selected_collection(self):
-        """Edit the selected collection."""
+        """Edit the selected collection using the comprehensive collection dialog."""
         current = self.collections_list.currentItem()
         if not current:
             return
@@ -367,31 +392,36 @@ class StartupDialog(QDialog):
         if not collection:
             return
         
-        # Edit name
-        new_name, ok = QInputDialog.getText(self, "Edit Collection", 
-                                          "Collection name:", text=collection.name)
-        if not ok or not new_name.strip():
-            return
-        
-        new_name = new_name.strip()
-        
-        # Check if name changed and if new name exists
-        if new_name != collection.name and self.collection_manager.collection_exists(new_name):
-            QMessageBox.warning(self, "Collection Exists", 
-                              f"A collection named '{new_name}' already exists.")
-            return
-        
-        # If name changed, delete old and create new
-        old_name = collection.name
-        collection.name = new_name
-        
-        if old_name != new_name:
-            self.collection_manager.delete_collection(old_name)
-        
-        # Update and save
-        collection.update_image_count()
-        self.collection_manager.save_collection(collection)
-        self.refresh_collections()
+        # Open collection dialog in edit mode
+        collection_dialog = CollectionDialog(self, collection)
+        if collection_dialog.exec() == QDialog.Accepted:
+            try:
+                # Get updated data from the dialog
+                collection_data = collection_dialog.get_collection_data()
+                
+                # Check if name changed and if new name exists
+                if (collection_data['name'] != collection.name and 
+                    self.collection_manager.collection_exists(collection_data['name'])):
+                    QMessageBox.warning(self, "Collection Exists", 
+                                      f"A collection named '{collection_data['name']}' already exists.")
+                    return
+                
+                # If name changed, delete old collection file
+                old_name = collection.name
+                if old_name != collection_data['name']:
+                    self.collection_manager.delete_collection(old_name)
+                
+                # Update collection with new data
+                collection.name = collection_data['name']
+                collection.paths = collection_data['paths']
+                collection.sort_method = collection_data['sort_method']
+                collection.sort_descending = collection_data['sort_descending']
+                
+                # Update image count using loading dialog for large collections
+                self._update_collection_with_loading(collection)
+                        
+            except ValueError as e:
+                QMessageBox.warning(self, "Invalid Input", str(e))
     
     def delete_selected_collection(self):
         """Delete the selected collection."""
@@ -419,25 +449,40 @@ class StartupDialog(QDialog):
                 QMessageBox.critical(self, "Error", "Failed to delete collection.")
     
     def open_selected_collection(self):
-        """Open the selected collection with timer configuration."""
+        """Open the selected collection with viewing settings configuration."""
         current = self.collections_list.currentItem()
         if not current:
             return
         
         collection = current.data(Qt.UserRole)
         if collection:
-            # Show timer configuration dialog
-            timer_dialog = TimerConfigDialog(self)
-            if timer_dialog.exec() == QDialog.Accepted:
-                timer_enabled, timer_interval = timer_dialog.get_timer_settings()
+            # Show viewing settings dialog with collection's current settings
+            settings_dialog = ViewingSettingsDialog(self, collection)
+            if settings_dialog.exec() == QDialog.Accepted:
+                timer_enabled, timer_interval = settings_dialog.get_timer_settings()
+                sort_method, sort_descending = settings_dialog.get_sorting_settings()
+                
+                # Create a temporary collection with overridden settings if they changed
+                viewing_collection = collection
+                if sort_method != collection.sort_method or sort_descending != collection.sort_descending:
+                    # Create a copy with overridden settings for this session
+                    viewing_collection = Collection(
+                        collection.name,
+                        collection.paths,
+                        collection.created_date,
+                        collection.last_used,
+                        collection.image_count,
+                        sort_method,
+                        sort_descending
+                    )
                 
                 collection.mark_as_used()
                 self.collection_manager.save_collection(collection)
                 
                 # Emit collection with timer settings
-                self.collection_selected.emit((collection, timer_enabled, timer_interval))
+                self.collection_selected.emit((viewing_collection, timer_enabled, timer_interval))
                 self.accept()
-            # If timer dialog was cancelled, just return (keep startup dialog open)
+            # If settings dialog was cancelled, just return (keep startup dialog open)
     
     def show_collections_location(self):
         """Open the collections directory in the system file manager."""
@@ -450,8 +495,10 @@ class StartupDialog(QDialog):
         # Try to open in file manager using cross-platform approach
         try:
             if sys.platform == "win32":
-                # Windows - use explorer
-                subprocess.run(["explorer", collections_dir], check=True)
+                # Windows - normalize path and use explorer
+                # Convert forward slashes to backslashes for Windows
+                win_path = os.path.normpath(collections_dir)
+                subprocess.run(["explorer", win_path], shell=False)
             elif sys.platform == "darwin":
                 # macOS - use Finder
                 subprocess.run(["open", collections_dir], check=True)
@@ -468,25 +515,28 @@ class StartupDialog(QDialog):
                     # Fallback to Qt's desktop services
                     QDesktopServices.openUrl(QUrl.fromLocalFile(collections_dir))
         except Exception as e:
-            # Fallback to showing a message with the path
-            QMessageBox.information(
-                self, 
-                "Collections Location", 
-                f"Collections are stored in:\n{collections_dir}\n\n"
-                f"(Could not open file manager: {str(e)})"
-            )
+            # Fallback to Qt's desktop services first, then show message if that fails too
+            try:
+                QDesktopServices.openUrl(QUrl.fromLocalFile(collections_dir))
+            except Exception:
+                QMessageBox.information(
+                    self, 
+                    "Collections Location", 
+                    f"Collections are stored in:\n{collections_dir}\n\n"
+                    f"(Could not open file manager: {str(e)})"
+                )
     
     def quick_shuffle_folder(self):
         """Quick shuffle a single folder with timer configuration."""
         folder = QFileDialog.getExistingDirectory(self, "Select folder to shuffle")
         if folder:
-            # Show timer configuration dialog
-            timer_dialog = TimerConfigDialog(self)
-            if timer_dialog.exec() == QDialog.Accepted:
-                timer_enabled, timer_interval = timer_dialog.get_timer_settings()
+            # Show viewing settings dialog (no collection, so no sorting override options)
+            settings_dialog = ViewingSettingsDialog(self)
+            if settings_dialog.exec() == QDialog.Accepted:
+                timer_enabled, timer_interval = settings_dialog.get_timer_settings()
                 
                 # Emit folder with timer settings
                 self.folder_selected.emit((folder, timer_enabled, timer_interval))
                 self.accept()
-            # If timer dialog was cancelled, just return (keep startup dialog open)
+            # If settings dialog was cancelled, just return (keep startup dialog open)
         # If folder dialog was cancelled, just return (keep startup dialog open)
