@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/radioactiveorange/glimpse/compare/v1.4.1...v1.5.0) (2025-09-02)
+
+### Features
+
+* add sorting options ([4f4ae9c](https://github.com/radioactiveorange/glimpse/commit/4f4ae9c357a220d55f496e4c15c345730e37afd6))
+
 ## [1.4.1](https://github.com/radioactiveorange/glimpse/compare/v1.4.0...v1.4.1) (2025-09-01)
 
 ### Bug Fixes
