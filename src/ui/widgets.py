@@ -277,31 +277,37 @@ class ButtonOverlay(QWidget):
         self.prev_btn._base_icon = self._create_transparent_icon("skip_previous", icon_size, icon_color, 0.7)
         self.prev_btn._hover_icon = create_professional_icon("skip_previous", icon_size, icon_color)
         self.prev_btn.setIcon(self.prev_btn._base_icon)
+        self.prev_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         self.pause_btn = QPushButton()
         self.pause_btn._base_icon = self._create_transparent_icon("pause", icon_size, icon_color, 0.7)
         self.pause_btn._hover_icon = create_professional_icon("pause", icon_size, icon_color)
         self.pause_btn.setIcon(self.pause_btn._base_icon)
+        self.pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         self.stop_btn = QPushButton()
         self.stop_btn._base_icon = self._create_transparent_icon("stop", icon_size, icon_color, 0.7)
         self.stop_btn._hover_icon = create_professional_icon("stop", icon_size, icon_color)
         self.stop_btn.setIcon(self.stop_btn._base_icon)
-        
+        self.stop_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         self.next_btn = QPushButton()
         self.next_btn._base_icon = self._create_transparent_icon("skip_next", icon_size, icon_color, 0.7)
         self.next_btn._hover_icon = create_professional_icon("skip_next", icon_size, icon_color)
         self.next_btn.setIcon(self.next_btn._base_icon)
-        
+        self.next_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         self.zoom_out_btn = QPushButton()
         self.zoom_out_btn._base_icon = self._create_transparent_icon("zoom_out", icon_size, icon_color, 0.7)
         self.zoom_out_btn._hover_icon = create_professional_icon("zoom_out", icon_size, icon_color)
         self.zoom_out_btn.setIcon(self.zoom_out_btn._base_icon)
+        self.zoom_out_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         self.zoom_in_btn = QPushButton()
         self.zoom_in_btn._base_icon = self._create_transparent_icon("zoom_in", icon_size, icon_color, 0.7)
         self.zoom_in_btn._hover_icon = create_professional_icon("zoom_in", icon_size, icon_color)
         self.zoom_in_btn.setIcon(self.zoom_in_btn._base_icon)
+        self.zoom_in_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         
         # Setup hover behavior for each button
         for btn in [self.prev_btn, self.pause_btn, self.stop_btn, self.next_btn, self.zoom_out_btn, self.zoom_in_btn]:

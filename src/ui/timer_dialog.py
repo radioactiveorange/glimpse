@@ -1,16 +1,15 @@
 """Viewing settings dialog for opening collections with timer and sort override options."""
 
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QRadioButton, QSpinBox, QButtonGroup, QGroupBox, QApplication,
-    QComboBox, QCheckBox
+    QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
+    QRadioButton, QSpinBox, QButtonGroup, QGroupBox, QApplication
 )
 from PySide6.QtCore import Qt, QTimer
-from .styles import create_dialog_action_button, create_standard_button
-from ..core.image_utils import create_professional_icon
+from .components import CenteredDialog, SortingPanel
+from .styles import create_dialog_action_button
 
 
-class ViewingSettingsDialog(QDialog):
+class ViewingSettingsDialog(CenteredDialog):
     """Dialog for configuring viewing settings when opening a collection."""
     
     def __init__(self, parent=None, collection=None):
@@ -32,19 +31,6 @@ class ViewingSettingsDialog(QDialog):
             self.sort_descending = False
         
         self.init_ui()
-    
-    def center_on_screen(self):
-        """Center the dialog on the screen."""
-        screen = QApplication.primaryScreen().availableGeometry()
-        dialog = self.frameGeometry()
-        x = (screen.width() - dialog.width()) // 2 + screen.x()
-        y = (screen.height() - dialog.height()) // 2 + screen.y()
-        self.move(x, y)
-    
-    def showEvent(self, event):
-        """Override showEvent to center dialog when shown."""
-        super().showEvent(event)
-        QTimer.singleShot(0, self.center_on_screen)
     
     def init_ui(self):
         """Initialize the user interface."""
@@ -103,7 +89,7 @@ class ViewingSettingsDialog(QDialog):
             sorting_group = QGroupBox("Image Sorting (Override Collection Settings)")
             sorting_layout = QVBoxLayout(sorting_group)
             
-            # Show current collection settings
+            # Create collection default info text
             sort_display = {
                 "random": "Random (shuffle)",
                 "name": "Name (alphabetical)",
@@ -114,81 +100,15 @@ class ViewingSettingsDialog(QDialog):
             current_sort = sort_display.get(self.collection.sort_method, self.collection.sort_method)
             if self.collection.sort_method != "random" and self.collection.sort_descending:
                 current_sort += " (descending)"
+            current_info_text = f"Collection default: {current_sort}"
             
-            current_info = QLabel(f"Collection default: {current_sort}")
-            current_info.setStyleSheet("color: #666; font-size: 11px; margin-bottom: 5px;")
-            sorting_layout.addWidget(current_info)
-            
-            # Sort method row
-            sort_method_layout = QHBoxLayout()
-            sort_method_layout.setSpacing(10)
-            
-            sort_by_label = QLabel("Sort by:")
-            sort_by_label.setMinimumWidth(60)
-            sort_method_layout.addWidget(sort_by_label)
-            
-            self.sort_method_combo = QComboBox()
-            self.sort_method_combo.addItems([
-                "Random (shuffle)",
-                "Name (alphabetical)",
-                "Full path",
-                "File size",
-                "Date modified"
-            ])
-            self.sort_method_combo.setCurrentIndex(0)  # Default to random
-            self.sort_method_combo.setMinimumWidth(160)
-            sort_method_layout.addWidget(self.sort_method_combo)
-            
-            sort_method_layout.addStretch()
-            sorting_layout.addLayout(sort_method_layout)
-            
-            # Sort order row
-            sort_order_layout = QHBoxLayout()
-            sort_order_layout.setSpacing(10)
-            
-            sort_order_label = QLabel("Order:")
-            # Store reference for updating text
-            sort_order_label.setMinimumWidth(60)
-            sort_order_layout.addWidget(sort_order_label)
-            
-            self.sort_order_combo = QComboBox()
-            self.sort_order_combo.addItems(["Ascending", "Descending"])
-            self.sort_order_combo.setMinimumWidth(160)
-            # Set custom styling for disabled state
-            self.sort_order_combo.setStyleSheet("""
-                QComboBox:disabled {
-                    background-color: #1e1e1e;
-                    color: #666666;
-                    border: 1px solid #333333;
-                }
-            """)
-            sort_order_layout.addWidget(self.sort_order_combo)
-            
-            sort_order_layout.addStretch()
-            sorting_layout.addLayout(sort_order_layout)
-            
-            # Connect sort method combo to enable/disable sort order combo
-            def on_sort_method_changed():
-                # Disable sort order combo for random sort
-                is_random = self.sort_method_combo.currentIndex() == 0
-                self.sort_order_combo.setEnabled(not is_random)
-                if is_random:
-                    self.sort_order_combo.setCurrentIndex(0)  # Reset to ascending
-                    # Also update the label to show it's not applicable
-                    sort_order_label.setText("Order: (N/A)")
-                else:
-                    sort_order_label.setText("Order:")
-            
-            self.sort_method_combo.currentIndexChanged.connect(on_sort_method_changed)
+            # Use the reusable SortingPanel component
+            self.sorting_panel = SortingPanel(show_current_info=True, current_info_text=current_info_text)
             
             # Set current collection values
-            sort_methods = ["random", "name", "path", "size", "date"]
-            if self.sort_method in sort_methods:
-                self.sort_method_combo.setCurrentIndex(sort_methods.index(self.sort_method))
-            self.sort_order_combo.setCurrentIndex(1 if self.sort_descending else 0)
+            self.sorting_panel.set_sorting_settings(self.sort_method, self.sort_descending)
             
-            on_sort_method_changed()  # Initialize state
-            
+            sorting_layout.addWidget(self.sorting_panel)
             layout.addWidget(sorting_group)
         
         # Connect signals
@@ -230,9 +150,5 @@ class ViewingSettingsDialog(QDialog):
         if not self.collection:
             return "random", False
         
-        # Map combo box indices to sort method strings
-        sort_methods = ["random", "name", "path", "size", "date"]
-        sort_method = sort_methods[self.sort_method_combo.currentIndex()]
-        sort_descending = self.sort_order_combo.currentIndex() == 1
-        
-        return sort_method, sort_descending
+        # Use the SortingPanel to get settings
+        return self.sorting_panel.get_sorting_settings()

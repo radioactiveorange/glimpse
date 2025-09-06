@@ -6,20 +6,21 @@ import subprocess
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, 
     QListWidgetItem, QFileDialog, QMessageBox, QWidget,
-    QSplitter, QTextEdit, QGroupBox, QSizePolicy, QApplication
+    QSplitter, QTextEdit, QGroupBox, QSizePolicy
 )
 from PySide6.QtGui import QFont, QDesktopServices
-from PySide6.QtCore import Qt, Signal, QTimer, QUrl
+from PySide6.QtCore import Qt, Signal, QUrl
 
 from ..core.collections import CollectionManager, Collection
 from ..core.image_utils import create_professional_icon
+from .components.centered_dialog import CenteredDialog
 from .timer_dialog import ViewingSettingsDialog
 from .collection_dialog import CollectionDialog
 from .loading_dialog import LoadingDialog
 from .styles import create_standard_button, create_dialog_action_button
 from ..version import get_version
 
-class StartupDialog(QDialog):
+class StartupDialog(CenteredDialog):
     """Startup dialog for managing collections and quick folder access."""
     
     # Signals to communicate with main application
@@ -30,7 +31,6 @@ class StartupDialog(QDialog):
         super().__init__(parent)
         self.collection_manager = CollectionManager()
         self.setWindowTitle(f"Glimpse v{get_version()}")
-        self.setModal(True)
         self.resize(800, 600)
         
         self.init_ui()
@@ -38,18 +38,6 @@ class StartupDialog(QDialog):
         # Ensure no item is selected by default
         self.collections_list.clearSelection()
     
-    def center_on_screen(self):
-        """Center the dialog on the screen."""
-        screen = QApplication.primaryScreen().availableGeometry()
-        dialog = self.frameGeometry()
-        x = (screen.width() - dialog.width()) // 2 + screen.x()
-        y = (screen.height() - dialog.height()) // 2 + screen.y()
-        self.move(x, y)
-    
-    def showEvent(self, event):
-        """Override showEvent to center dialog when shown."""
-        super().showEvent(event)
-        QTimer.singleShot(0, self.center_on_screen)
     
     def init_ui(self):
         """Initialize the user interface."""

@@ -1,12 +1,13 @@
 """Loading dialog with progress indication for large collections."""
 
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QProgressBar, QHBoxLayout, QApplication
+from PySide6.QtWidgets import QVBoxLayout, QLabel, QProgressBar, QHBoxLayout
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QFont
 import os
 from typing import List
 
 from ..core.image_utils import IMAGE_EXTENSIONS
+from .components.centered_dialog import CenteredDialog
 
 
 class ImageLoadingWorker(QThread):
@@ -110,7 +111,7 @@ class ImageLoadingWorker(QThread):
         return max(total_estimate, 100)  # Ensure we have at least some estimate
 
 
-class LoadingDialog(QDialog):
+class LoadingDialog(CenteredDialog):
     """Loading dialog with progress bar and folder information."""
     
     def __init__(self, paths: List[str], parent=None):
@@ -120,25 +121,12 @@ class LoadingDialog(QDialog):
         self.images = []
         
         self.setWindowTitle("Loading Images...")
-        self.setModal(True)
         self.setFixedSize(400, 150)
         self.setWindowFlags(Qt.Dialog | Qt.CustomizeWindowHint | Qt.WindowTitleHint)
         
         self.init_ui()
         self.start_loading()
     
-    def center_on_screen(self):
-        """Center the dialog on the screen."""
-        screen = QApplication.primaryScreen().availableGeometry()
-        dialog = self.frameGeometry()
-        x = (screen.width() - dialog.width()) // 2 + screen.x()
-        y = (screen.height() - dialog.height()) // 2 + screen.y()
-        self.move(x, y)
-    
-    def showEvent(self, event):
-        """Override showEvent to center dialog when shown."""
-        super().showEvent(event)
-        QTimer.singleShot(0, self.center_on_screen)
     
     def init_ui(self):
         """Initialize the user interface."""

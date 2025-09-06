@@ -16,6 +16,10 @@ from PySide6.QtCore import Qt, QTimer, QSize, QSettings, QThread, Signal
 from .widgets import ClickableLabel, MinimalProgressBar, ButtonOverlay
 from .startup_dialog import StartupDialog
 from .loading_dialog import LoadingDialog
+from .managers.image_display_manager import ImageDisplayManager
+from .managers.media_controls_manager import MediaControlsManager
+from .managers.history_manager import HistoryManager
+from .managers.menu_manager import MenuManager
 from ..core.image_utils import get_images_in_folder, set_adaptive_bg
 from ..core.collections import Collection
 
@@ -155,36 +159,121 @@ class GlimpseViewer(QMainWindow):
         self.folder = None
         self.current_collection = None
         self.images = []
-        self.history = []
-        self.current_image = None
-        self.current_index = -1
-        self.history_index = -1
-        self.sorted_collection_index = 0  # For sequential navigation in sorted collections
+        self.current_image = None  # Still needed for compatibility
         self.timer_interval = self.settings.value("timer_interval", 60, type=int)
-        self.timer_remaining = 0
         self._auto_advance_active = self.settings.value("auto_advance_enabled", False, type=bool)
         self.show_history = self.settings.value("show_history_panel", False, type=bool)
-        self.zoom_factor = 1.0
-        self.flipped_h = False
-        self.flipped_v = False
-        self._timer_paused = False
-        self._cached_pixmap = None  # Cache processed image for smooth zooming
-        self._pending_grayscale_path = None  # Track if grayscale processing is pending
         
-        # Panning state
+        # Image display attributes (for compatibility - ImageDisplayManager is authoritative)
+        self.zoom_factor = 1.0
         self.pan_offset_x = 0
         self.pan_offset_y = 0
-        self._is_panning = False
-        self._last_pan_point = None
+        self.flipped_h = False
+        self.flipped_v = False
+        self._cached_pixmap = None
+        self._pending_grayscale_path = None
         
-        # Initialize timer
-        self.timer = QTimer(self)
-        self.timer.setInterval(1000)
-        self.timer.timeout.connect(self._on_timer_tick)
         
         self.init_ui()
+        
+        # Initialize image display manager
+        self.image_display = ImageDisplayManager(self.image_label, self.settings)
+        
+        # Initialize history manager
+        self.history_manager = HistoryManager()
+        self.history_manager.setup_history_panel(self.history_list)
+        
+        # Initialize menu manager
+        self.menu_manager = MenuManager(self)
+        self.menu_manager.set_settings(self.settings)
+        
+        # Initialize media controls manager
+        self.media_controls = MediaControlsManager(self.settings)
+        self.media_controls.set_has_images(len(self.images) > 0)
+        
+        # Connect image display signals
+        self.image_display.image_changed.connect(self._on_image_changed)
+        self.image_display.zoom_changed.connect(self._on_zoom_changed)
+        self.image_display.transform_changed.connect(self._on_transform_changed)
+        
+        # Connect history manager signals
+        self.history_manager.image_requested.connect(self._on_history_image_requested)
+        self.history_manager.history_navigation.connect(self._on_history_navigation)
+        self.history_manager.random_image_requested.connect(self.show_random_image)
+        
+        # Connect menu manager signals
+        self.menu_manager.previous_image_requested.connect(self.show_previous_image)
+        # OPTIMIZATION: Use fast navigation for keyboard shortcuts
+        self.menu_manager.next_image_requested.connect(lambda: self.show_next_image(fast_navigation=True))
+        self.menu_manager.next_or_random_requested.connect(lambda: self.show_next_or_random_image(fast_navigation=True))
+        self.menu_manager.random_image_requested.connect(self.show_random_image)
+        
+        # Timer control signals
+        self.menu_manager.timer_start_requested.connect(self.start_timer)
+        self.menu_manager.timer_stop_requested.connect(self.stop_timer)
+        self.menu_manager.timer_pause_requested.connect(self.toggle_pause)
+        self.menu_manager.timer_interval_changed.connect(self.set_timer_interval)
+        
+        # View control signals
+        self.menu_manager.zoom_in_requested.connect(self.zoom_in)
+        self.menu_manager.zoom_out_requested.connect(self.zoom_out)
+        self.menu_manager.reset_zoom_requested.connect(self.reset_zoom)
+        self.menu_manager.reset_pan_requested.connect(self.reset_pan)
+        self.menu_manager.background_mode_changed.connect(self.change_bg_mode)
+        self.menu_manager.history_panel_toggled.connect(self.toggle_history_panel)
+        
+        # Transform signals
+        self.menu_manager.grayscale_toggled.connect(self.toggle_grayscale)
+        self.menu_manager.flip_horizontal_requested.connect(self.flip_horizontal)
+        self.menu_manager.flip_vertical_requested.connect(self.flip_vertical)
+        
+        # File action signals
+        self.menu_manager.open_in_explorer_requested.connect(self.open_current_in_explorer)
+        self.menu_manager.switch_collection_requested.connect(self.show_welcome_dialog)
+        self.menu_manager.keyboard_shortcuts_requested.connect(self.show_keyboard_shortcuts)
+        
+        # Connect media controls signals
+        self.media_controls.timer_expired.connect(self.show_random_image)
+        self.media_controls.timer_state_changed.connect(self._on_timer_state_changed)
+        self.media_controls.progress_updated.connect(self._on_progress_updated)
+        
         self._initial_image_shown = False
     
+    # ImageDisplayManager signal handlers
+    def _on_image_changed(self, img_path):
+        """Handle image changed signal from ImageDisplayManager."""
+        # Only add to history if this was a new image load (not navigation)
+        # The HistoryManager will handle adding images via its own methods
+        self.current_image = img_path
+        self.update_image_info(img_path)
+        self._update_title(img_path)
+    
+    def _on_zoom_changed(self, zoom_factor):
+        """Handle zoom changed signal from ImageDisplayManager."""
+        # Update any UI elements that show zoom level if needed
+        pass
+    
+    def _on_transform_changed(self):
+        """Handle transform changed signal from ImageDisplayManager."""
+        # Update any UI elements that show transform state if needed
+        pass
+    
+    # HistoryManager signal handlers
+    def _on_history_image_requested(self, img_path):
+        """Handle image request from HistoryManager."""
+        self.image_display.display_image(img_path)
+        self.update_image_info(img_path)
+        if self.media_controls.is_active():
+            self.media_controls.reset_timer()
+    
+    def _on_history_navigation(self, img_path, is_forward):
+        """Handle navigation from HistoryManager."""
+        # Reset transformations for navigation
+        self.image_display.reset_all_transforms()
+        self.image_display.display_image(img_path)
+        self.update_image_info(img_path)
+        if self.media_controls.is_active():
+            self.media_controls.reset_timer()
     
     def center_on_screen(self):
         """Center the window on the screen."""
@@ -194,17 +283,6 @@ class GlimpseViewer(QMainWindow):
         y = (screen.height() - window.height()) // 2 + screen.y()
         self.move(x, y)
     
-    def showEvent(self, event):
-        """Override showEvent to center window when first shown."""
-        super().showEvent(event)
-        if not hasattr(self, '_centered'):
-            # Use QTimer to center after window is fully shown
-            QTimer.singleShot(0, self._delayed_center)
-            self._centered = True
-    
-    def _delayed_center(self):
-        """Center window after it's fully displayed."""
-        self.center_on_screen()
 
     def init_ui(self):
         """Initialize the user interface."""
@@ -242,7 +320,6 @@ class GlimpseViewer(QMainWindow):
         # History panel
         self.history_list = QListWidget()
         self.history_list.setMaximumWidth(180)
-        self.history_list.itemClicked.connect(self.on_history_clicked)
         self.history_list.hide()
         central_splitter.addWidget(self.history_list)
         central_splitter.setSizes([900, 100])
@@ -267,117 +344,163 @@ class GlimpseViewer(QMainWindow):
         self.image_label.resizeEvent = self.overlay_resize_event(self.image_label.resizeEvent)
 
     def showEvent(self, event):
-        """Handle show event to display initial image."""
+        """Handle show event to center window and display initial image."""
         super().showEvent(event)
+        
+        # Center window on first show
+        if not hasattr(self, '_centered'):
+            QTimer.singleShot(0, self.center_on_screen)
+            self._centered = True
+        
+        # Show initial image if available
         if not self._initial_image_shown and self.images:
             self.show_random_image()
             self._initial_image_shown = True
-            self._reset_timer()
         
         # Update title and image info on show
         self.update_image_info()
         self._update_title()
 
     def keyPressEvent(self, event):
-        """Handle keyboard shortcuts."""
-        if event.key() == Qt.Key_Left:
-            self.show_previous_image()
-        elif event.key() == Qt.Key_Right:
-            self.show_next_image()
-        elif event.key() == Qt.Key_Space:
-            self.toggle_pause()
-        elif event.key() == Qt.Key_F:
-            self.flip_horizontal()
-        elif event.key() == Qt.Key_G:
-            # Toggle grayscale mode
-            current_grayscale = self.settings.value("grayscale_enabled", False, type=bool)
-            self.toggle_grayscale(not current_grayscale)
-        elif event.key() == Qt.Key_B:
-            self.cycle_background_mode()
-        elif event.key() == Qt.Key_H:
-            # Toggle history panel
-            current_visibility = self.history_list.isVisible()
-            self.toggle_history_panel(not current_visibility)
-        elif event.key() == Qt.Key_Escape:
-            # Switch collection/folder
-            self.show_welcome_dialog()
-        elif event.modifiers() & Qt.ControlModifier:
-            if event.key() in (Qt.Key_Plus, Qt.Key_Equal):
-                self.zoom_in()
-            elif event.key() == Qt.Key_Minus:
-                self.zoom_out()
-            elif event.key() == Qt.Key_0:
-                self.reset_zoom()
+        """Handle keyboard shortcuts via MenuManager."""
+        # Update menu manager state for proper handling
+        self._update_menu_manager_state()
+        
+        # Delegate to menu manager
+        if self.menu_manager.handle_key_press(event):
+            return  # Key was handled
+        
+        # Fall back to default handling
+        super().keyPressEvent(event)
+    
+    def _update_menu_manager_state(self):
+        """Update MenuManager state for accurate menu handling."""
+        history_info = self.history_manager.get_history_info()
+        
+        self.menu_manager.update_state(
+            history_index=history_info['current_index'],
+            history_length=history_info['total_count'],
+            timer_interval=self.media_controls.get_timer_interval(),
+            auto_advance_active=self.media_controls.is_active(),
+            timer_paused=self.media_controls.is_paused(),
+            zoom_factor=self.zoom_factor,
+            current_image=self.current_image
+        )
+        
+    # MediaControlsManager signal handlers
+    def _on_timer_state_changed(self, active, paused):
+        """Handle timer state changes from MediaControlsManager."""
+        # Update button overlay to reflect timer state
+        if hasattr(self, 'button_overlay'):
+            self.button_overlay.set_pause_state(paused, active)
+        
+        # Show/hide progress bar based on timer state
+        if hasattr(self, 'progress_bar'):
+            if active:
+                self.progress_bar.show()
             else:
-                super().keyPressEvent(event)
-        else:
-            super().keyPressEvent(event)
+                self.progress_bar.hide()
+    
+    def _on_progress_updated(self, remaining, total):
+        """Handle progress updates from MediaControlsManager."""
+        # Update progress bar
+        if hasattr(self, 'progress_bar'):
+            self.progress_bar.set_total_time(total)
+            self.progress_bar.set_remaining_time(remaining)
 
     def toggle_pause(self):
         """Toggle pause state of the auto-advance timer."""
-        if not self._auto_advance_active:
-            # If timer is disabled, enable it instead of just pausing
-            self.start_timer()
-            return
-        
-        self._timer_paused = not self._timer_paused
-        if self._timer_paused:
-            self.timer.stop()
-        else:
-            self.timer.start()
-        
-        self.button_overlay.set_pause_state(self._timer_paused, self._auto_advance_active)
+        self.media_controls.toggle_pause()
     
     def start_timer(self):
         """Start/enable the auto-advance timer."""
-        self._auto_advance_active = True
-        self._timer_paused = False
-        self.settings.setValue("auto_advance_enabled", True)
-        self._reset_timer()
-        self.button_overlay.set_pause_state(False, self._auto_advance_active)
+        self.media_controls.start_timer()
 
     def stop_timer(self):
         """Stop and disable the auto-advance timer completely."""
-        self._auto_advance_active = False
-        self._timer_paused = False
-        self.settings.setValue("auto_advance_enabled", False)
-        self._reset_timer()
-        self.button_overlay.set_pause_state(False, self._auto_advance_active)
+        self.media_controls.stop_timer()
 
     def show_previous_image(self):
         """Show the previous image in history."""
-        if self.history_index > 0:
-            self.history_index -= 1
-            img_path = self.history[self.history_index]
-            self.flipped_h = False
-            self.flipped_v = False
-            self.display_image(img_path)
-            self.current_image = img_path
+        # Exact replica of original implementation for performance
+        if self.history_manager.history_index > 0:
+            self.history_manager.history_index -= 1
+            img_path = self.history_manager.history[self.history_manager.history_index]
+            
+            # Reset flip states directly (like original)
+            self.image_display.is_flipped_h = False
+            self.image_display.is_flipped_v = False
+            
+            # Call the original display pattern for performance
+            self.image_display._load_and_process_image(img_path)
+            # self.image_display._update_zoom_display()
+            
+            # Skip expensive operations during keyboard navigation (original performance optimization)
+            # Don't show button overlay or update background - keyboard navigation should be fast
+            
+            # Update state
+            self.image_display.current_image = img_path
+            self.history_manager.current_image = img_path
             self.update_image_info(img_path)
-            if self._auto_advance_active:
-                self.timer_remaining = self.timer_interval
-                self._update_progress()
+            
+            # Reset timer if active (simplified)
+            if self.media_controls.is_active():
+                self.media_controls.reset_timer()
 
-    def show_next_image(self):
+    def show_next_image(self, fast_navigation=True):
         """Show the next image in history or a random one."""
-        if self.history_index < len(self.history) - 1:
-            self.history_index += 1
-            img_path = self.history[self.history_index]
-            self.flipped_h = False
-            self.flipped_v = False
-            self.display_image(img_path)
-            self.current_image = img_path
-            self.update_image_info(img_path)
-            if self._auto_advance_active:
-                self.timer_remaining = self.timer_interval
-                self._update_progress()
+        # Exact replica of original implementation for performance
+        if self.history_manager.history_index < len(self.history_manager.history) - 1:
+            self.history_manager.history_index += 1
+            img_path = self.history_manager.history[self.history_manager.history_index]
+            
+            # Reset flip states directly (like original)
+            self.image_display.is_flipped_h = False
+            self.image_display.is_flipped_v = False
+            
+            # OPTIMIZATION: Fast path for keyboard navigation
+            if fast_navigation:
+                # Load image without expensive operations
+                pixmap = QPixmap(img_path)
+                if not pixmap.isNull():
+                    self.image_display._cached_pixmap = pixmap
+                    self.image_display.image_label.setPixmap(pixmap)
+                    
+                    # Update state quickly
+                    self.image_display.current_image = img_path
+                    self.history_manager.current_image = img_path
+                    
+                    # Skip expensive operations during fast navigation:
+                    # - Skip update_image_info (window title updates)
+                    # - Skip thumbnail generation (history updates)
+                    # - Skip button overlays
+                    # - Skip history item creation
+                    
+                    # Reset timer if active (simplified)
+                    if self.media_controls.is_active():
+                        self.media_controls.reset_timer()
+                else:
+                    # Fallback to normal loading if fast path fails
+                    self.image_display._load_and_process_image(img_path)
+                    self.image_display.current_image = img_path
+                    self.history_manager.current_image = img_path
+                    self.update_image_info(img_path)
+            else:
+                # Normal path with all features
+                self.image_display._load_and_process_image(img_path)
+                self.image_display.current_image = img_path
+                self.history_manager.current_image = img_path
+                self.update_image_info(img_path)
+                
+                if self.media_controls.is_active():
+                    self.media_controls.reset_timer()
         else:
             self.show_random_image()
 
-    def show_next_or_random_image(self):
+    def show_next_or_random_image(self, fast_navigation=True):
         """Show next image or random if at end of history."""
-        if self.history_index < len(self.history) - 1:
-            self.show_next_image()
+        if self.history_manager.has_next():
+            self.show_next_image(fast_navigation=fast_navigation)
         else:
             self.show_random_image()
 
@@ -433,12 +556,19 @@ class GlimpseViewer(QMainWindow):
         if img_path is None or not os.path.exists(img_path):
             self._update_title()
             return
+        
+        # OPTIMIZATION: Use cached pixmap if available to avoid redundant loading
         base = os.path.basename(img_path)
-        pixmap = QPixmap(img_path)
-        if not pixmap.isNull():
-            info = f"{pixmap.width()}x{pixmap.height()}"
+        cached_pixmap = self.image_display._cached_pixmap
+        if cached_pixmap and not cached_pixmap.isNull():
+            info = f"{cached_pixmap.width()}x{cached_pixmap.height()}"
         else:
-            info = base
+            # Fallback to loading only if no cache available
+            pixmap = QPixmap(img_path)
+            if not pixmap.isNull():
+                info = f"{pixmap.width()}x{pixmap.height()}"
+            else:
+                info = base
         
         # Use appropriate title method
         if self.current_collection:
@@ -450,58 +580,42 @@ class GlimpseViewer(QMainWindow):
         """Display a random image from the current folder."""
         if not self.images:
             return
-        self.flipped_h = False
-        self.flipped_v = False
+            
+        # Reset transformations
+        self.image_display.reset_all_transforms()
         
         # Check if we're using a sorted collection (not random)
         if self.current_collection and self.current_collection.sort_method != "random":
-            self.show_next_sorted_image()
+            self.history_manager.get_sequential_image(
+                self.current_collection.sort_method,
+                "desc" if self.current_collection.sort_descending else "asc"
+            )
             return
         
-        available = [img for img in self.images if img not in self.history]
-        if not available:
-            self.history.clear()
-            self.history_list.clear()
-            available = self.images[:]
-        
-        # Note: Removed expensive file size checking that was causing freezing with large collections
-        
-        img_path = random.choice(available)
-        self.display_image(img_path)
-        self.add_to_history(img_path)
-        self.current_image = img_path
-        self.update_image_info(img_path)
-        if self._auto_advance_active:
-            self.timer_remaining = self.timer_interval
-            self._update_progress()
+        # Get random image through history manager
+        self.history_manager.get_random_image()
     
     def show_next_sorted_image(self):
         """Show the next image in a sorted collection."""
-        if not self.images:
+        if not self.images or not self.current_collection:
             return
+            
+        # Reset transformations
+        self.image_display.reset_all_transforms()
         
-        # Move to next image in sorted order
-        if self.sorted_collection_index >= len(self.images):
-            self.sorted_collection_index = 0  # Loop back to start
-        
-        img_path = self.images[self.sorted_collection_index]
-        self.sorted_collection_index += 1
-        
-        self.display_image(img_path)
-        self.add_to_history(img_path)
-        self.current_image = img_path
-        self.update_image_info(img_path)
-        if self._auto_advance_active:
-            self.timer_remaining = self.timer_interval
-            self._update_progress()
+        # Get next sequential image through history manager
+        self.history_manager.get_sequential_image(
+            self.current_collection.sort_method,
+            "desc" if self.current_collection.sort_descending else "asc"
+        )
 
     def display_image(self, img_path):
         """Display an image with current transformations and settings."""
-        # Load and process the image (this caches the result)
-        self._load_and_process_image(img_path)
+        # Delegate to image display manager
+        success = self.image_display.display_image(img_path)
         
-        # Apply zoom to the cached image
-        self._update_zoom_display()
+        if not success:
+            return
         
         # Show button overlay when image is loaded (but not on keyboard navigation)
         # Check if this display was triggered by keyboard navigation
@@ -516,18 +630,6 @@ class GlimpseViewer(QMainWindow):
         elif not hasattr(self, '_first_image_shown') or not self._first_image_shown:
             self.button_overlay.show_for_new_image()
             self._first_image_shown = True
-        
-        # Set background according to settings
-        mode = self.settings.value("bg_mode", "Black")
-        if mode == "Adaptive Color":
-            set_adaptive_bg(self.image_label, img_path)
-        elif mode == "Gray":
-            self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
-        else:
-            self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
-        
-        # Update title with just filename
-        self._update_title(img_path)
 
     def _is_image_too_large(self, img_path):
         """Check if an image file is likely too large for Qt to handle."""
@@ -539,203 +641,29 @@ class GlimpseViewer(QMainWindow):
         except:
             return False
     
-    def _load_and_process_image(self, img_path):
-        """Load image from disk and apply all transformations immediately but non-blocking."""
-        try:
-            # Load image from disk
-            pixmap = QPixmap(img_path)
-            if pixmap.isNull():
-                # Check if this might be due to size limit
-                import os
-                from PySide6.QtGui import QImageReader
-                file_size_mb = os.path.getsize(img_path) / (1024 * 1024)
-                
-                # Try to get image dimensions to calculate uncompressed size
-                try:
-                    reader = QImageReader(img_path)
-                    size = reader.size()
-                    if size.isValid():
-                        width, height = size.width(), size.height()
-                        uncompressed_mb = (width * height * 4) / (1024 * 1024)  # 4 bytes per pixel (RGBA)
-                        self.image_label.setText(f"Image too large to display.\n\nFile: {os.path.basename(img_path)}\nFile size: {file_size_mb:.1f}MB\nDimensions: {width}x{height}\nUncompressed: {uncompressed_mb:.1f}MB\n\nQt limit: 256MB uncompressed.\nConsider resizing the image.")
-                    else:
-                        self.image_label.setText(f"Cannot load image.\n\nFile: {os.path.basename(img_path)}\nSize: {file_size_mb:.1f}MB\n\nThis may exceed Qt's 256MB memory limit.")
-                except Exception:
-                    # Fallback if QImageReader fails
-                    self.image_label.setText(f"Cannot load image.\n\nFile: {os.path.basename(img_path)}\nSize: {file_size_mb:.1f}MB\n\nThis may exceed Qt's 256MB memory limit.")
-                
-                self._cached_pixmap = None
-                return
-        except Exception as e:
-            self.image_label.setText(f"Error loading image:\n{str(e)}")
-            self._cached_pixmap = None
-            return
-        
-        # Process image with all transformations immediately but without blocking UI
-        self.current_image = img_path
-        self._pending_grayscale_path = img_path
-        
-        # Use QTimer.singleShot with 0ms to process immediately but yield control to UI
-        QTimer.singleShot(0, lambda: self._process_image_immediately(pixmap, img_path))
-        
-        # Reset pan position when loading new image
-        self.pan_offset_x = 0
-        self.pan_offset_y = 0
-    
-    def _process_image_immediately(self, pixmap, img_path):
-        """Process image with all transformations immediately but non-blocking."""
-        # Only process if this is still the current image (user didn't navigate away)
-        if img_path != self.current_image or img_path != self._pending_grayscale_path:
-            return
-        
-        # Apply all transformations
-        image = pixmap.toImage()
-        
-        # Apply grayscale first (if enabled)
-        if self.settings.value("grayscale_enabled", False, type=bool):
-            image = self._apply_improved_grayscale(image)
-        
-        # Apply flips
-        if self.flipped_h:
-            transform = QTransform().scale(-1, 1)
-            image = image.transformed(transform)
-        if self.flipped_v:
-            transform = QTransform().scale(1, -1)
-            image = image.transformed(transform)
-        
-        # Cache the final processed result
-        self._cached_pixmap = QPixmap.fromImage(image)
-        
-        # Update display immediately
-        self._update_zoom_display()
-        
-        self._pending_grayscale_path = None
-    
-    def _apply_improved_grayscale(self, image):
-        """Apply fast grayscale conversion using Qt's optimized built-in method."""
-        # Use Qt's fast built-in grayscale conversion - much faster than pixel-by-pixel
-        return image.convertToFormat(QImage.Format_Grayscale8).convertToFormat(QImage.Format_RGB32)
-        
-    def _update_zoom_display(self):
-        """Update the display with current zoom level and pan offset using cached pixmap."""
-        if not self._cached_pixmap:
-            return
-            
-        # For small images, scale based on natural size; for large images, fit to container
-        original_size = self._cached_pixmap.size()
-        container_size = self.image_label.size()
-        
-        # Check if image is small (smaller than container in both dimensions)
-        is_small_image = (original_size.width() <= container_size.width() and 
-                         original_size.height() <= container_size.height())
-        
-        if is_small_image and self.zoom_factor == 1.0:
-            # For small images at 100% zoom, use original size
-            target_size = original_size
-        else:
-            # For large images or when zoomed, scale based on container size
-            if is_small_image:
-                # Scale from original size for small images
-                target_size = original_size * self.zoom_factor
-            else:
-                # Scale from fit-to-container size for large images
-                fit_size = original_size.scaled(container_size, Qt.KeepAspectRatio)
-                target_size = fit_size * self.zoom_factor
-        
-        # Scale the cached pixmap
-        scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        
-        # Apply panning - always use canvas when there's any pan offset
-        if self.pan_offset_x != 0 or self.pan_offset_y != 0:
-            # Create a canvas the size of the label
-            canvas = QPixmap(self.image_label.size())
-            
-            # Get the appropriate background color based on current mode
-            bg_color = self._get_current_background_color()
-            canvas.fill(bg_color)
-            
-            # Paint the scaled image with offset
-            painter = QPainter(canvas)
-            painter.setRenderHint(QPainter.SmoothPixmapTransform)
-            
-            # Calculate position to center the image with pan offset
-            x = (self.image_label.width() - scaled.width()) // 2 + self.pan_offset_x
-            y = (self.image_label.height() - scaled.height()) // 2 + self.pan_offset_y
-            
-            # Draw the scaled image at offset position
-            painter.drawPixmap(x, y, scaled)
-            painter.end()
-            
-            self.image_label.setPixmap(canvas)
-        else:
-            self.image_label.setPixmap(scaled)
-            
-        self.image_label.setToolTip("")
 
     def resizeEvent(self, event):
         """Handle window resize to redisplay current image."""
-        if self._cached_pixmap:
-            self._update_zoom_display()
+        if self.image_display._cached_pixmap:
+            self.image_display._update_zoom_display()
         super().resizeEvent(event)
 
-    def add_to_history(self, img_path):
-        """Add an image to the viewing history."""
-        # If we've navigated back in history and now show a new random image,
-        # remove all forward history.
-        if self.history_index < len(self.history) - 1:
-            self.history = self.history[:self.history_index + 1]
-            self.history_list.clear()
-            for path in self.history:
-                self._add_history_item(path)
-        # Only add if not duplicating last
-        if not self.history or (self.history and self.history[-1] != img_path):
-            self.history.append(img_path)
-            self._add_history_item(img_path)
-        self.history_index = len(self.history) - 1
 
-    def _add_history_item(self, img_path):
-        """Add an item to the history list widget."""
-        item = QListWidgetItem(os.path.basename(img_path))
-        thumb = QPixmap(img_path)
-        if not thumb.isNull():
-            thumb = thumb.scaled(QSize(40, 40), Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            item.setIcon(thumb)
-        item.setToolTip(img_path)
-        item.setData(Qt.UserRole, img_path)
-        self.history_list.addItem(item)
-        self.history_list.scrollToBottom()
 
-    def on_history_clicked(self, item):
-        """Handle clicking on a history item."""
-        img_path = item.data(Qt.UserRole)
-        if img_path:
-            # Update history_index to match clicked item
-            try:
-                idx = self.history.index(img_path)
-                self.history_index = idx
-            except ValueError:
-                self.history_index = len(self.history) - 1
-            self.display_image(img_path)
-            self.current_image = img_path
-            self.update_image_info(img_path)
-            if self._auto_advance_active:
-                self.timer_remaining = self.timer_interval
-                self._update_progress()
 
     def toggle_history_panel(self, checked):
         """Toggle the history panel visibility."""
-        self.history_list.setVisible(bool(checked))
-        self.settings.setValue("show_history_panel", bool(checked))
+        self.history_manager.toggle_history_panel(bool(checked), self.settings)
 
     def toggle_timer(self, checked):
         """Toggle the auto-advance timer from context menu."""
+        if checked:
+            self.media_controls.start_timer()
+        else:
+            self.media_controls.stop_timer()
+        
+        # Update compatibility attributes
         self._auto_advance_active = bool(checked)
-        self._timer_paused = False  # Reset pause state when toggling
-        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
-        self._reset_timer()
-        # Don't automatically show button overlay on timer toggle
-        # Update button overlay to reflect new state
-        self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
     def change_bg_mode(self, mode):
         """Change the background color mode."""
@@ -801,15 +729,15 @@ class GlimpseViewer(QMainWindow):
         """Flip the current image horizontally."""
         self.flipped_h = not self.flipped_h
         if self.current_image:
-            self._load_and_process_image(self.current_image)  # Reprocess with flip
-            self._update_zoom_display()
+            self.display_image(self.current_image)  # Reprocess with flip
+            # self._update_zoom_display()
 
     def flip_vertical(self):
         """Flip the current image vertically."""
         self.flipped_v = not self.flipped_v
         if self.current_image:
-            self._load_and_process_image(self.current_image)  # Reprocess with flip
-            self._update_zoom_display()
+            self.display_image(self.current_image)  # Reprocess with flip
+            # self._update_zoom_display()
 
     def overlay_resize_event(self, original_resize_event):
         """Create a custom resize event handler for overlay positioning."""
@@ -817,54 +745,32 @@ class GlimpseViewer(QMainWindow):
             # Call the original resize event
             if original_resize_event:
                 original_resize_event(event)
+            # Position overlays immediately - no delay needed
+            self._update_overlay_positions()
+        return new_resize_event
+    
+    def _update_overlay_positions(self):
+        """Update positions of progress bar and button overlay."""
+        if self.image_label.width() > 0 and self.image_label.height() > 0:
             # Position progress bar at bottom, full width
             self.progress_bar.setGeometry(0, self.image_label.height() - 4, self.image_label.width(), 4)
             # Position button overlay at bottom center
             overlay_x = (self.image_label.width() - self.button_overlay.width()) // 2
             overlay_y = self.image_label.height() - self.button_overlay.height() - 20
             self.button_overlay.move(overlay_x, overlay_y)
-        return new_resize_event
 
-    def _reset_timer(self):
-        """Reset the auto-advance timer."""
-        if self._auto_advance_active and self.images:
-            self.timer.stop()
-            self.timer_remaining = self.timer_interval
-            self._timer_paused = False
-            self._update_progress()
-            self.timer.start()
-            self.progress_bar.show()
-            # Don't automatically show button overlay on timer reset
-            self.button_overlay.set_pause_state(False, self._auto_advance_active)
-        else:
-            self.timer.stop()
-            self._timer_paused = False
-            self.progress_bar.set_remaining_time(0)
-            self.progress_bar.hide()
-            # Don't automatically show button overlay when timer disabled
-            self.button_overlay.set_pause_state(False, self._auto_advance_active)
 
-    def _on_timer_tick(self):
-        """Handle timer tick for auto-advance."""
-        if not self._auto_advance_active or not self.images or self._timer_paused:
-            if not self._auto_advance_active:
-                self.timer.stop()
-                self.progress_bar.set_remaining_time(0)
-            return
-        self.timer_remaining -= 1
-        if self.timer_remaining <= 0:
-            # Use QTimer.singleShot to ensure image loading happens in main thread
-            QTimer.singleShot(0, self.show_random_image)
-        else:
-            self._update_progress()
-
-    def _update_progress(self):
-        """Update the progress bar display."""
-        self.progress_bar.set_total_time(self.timer_interval)
-        self.progress_bar.set_remaining_time(self.timer_remaining)
 
     def show_context_menu(self, pos):
-        """Show the right-click context menu."""
+        """Show the right-click context menu via MenuManager."""
+        # Update menu manager state
+        self._update_menu_manager_state()
+        
+        # Delegate to menu manager
+        self.menu_manager.show_context_menu(pos)
+        return
+        
+        # OLD CODE BELOW - TO BE REMOVED
         menu = QMenu(self)
         
         # --- Navigation ---
@@ -996,10 +902,9 @@ class GlimpseViewer(QMainWindow):
 
     def set_timer_interval(self, value):
         """Set the timer interval."""
+        self.media_controls.set_timer_interval(value)
+        # Update local references for compatibility
         self.timer_interval = value
-        self.settings.setValue("timer_interval", value)
-        self.timer_remaining = value
-        self._update_progress()
 
     def set_custom_timer_interval(self):
         """Set a custom timer interval via dialog."""
@@ -1022,100 +927,57 @@ class GlimpseViewer(QMainWindow):
 
     def handle_wheel_zoom(self, angle):
         """Handle mouse wheel zoom."""
-        if angle > 0:
-            self.zoom_in()
-        else:
-            self.zoom_out()
+        self.image_display.handle_wheel_zoom(angle)
 
     def zoom_in(self):
         """Zoom in on the current image."""
-        self.zoom_factor = min(self.zoom_factor * 1.15, 8.0)
-        self._update_zoom_display()
+        self.image_display.zoom_in()
 
     def zoom_out(self):
         """Zoom out on the current image."""
-        self.zoom_factor = max(self.zoom_factor / 1.15, 0.1)
-        
-        # Auto-reset pan when image becomes smaller than display area
-        if self._cached_pixmap:
-            base_size = self.image_label.size()
-            target_size = base_size * self.zoom_factor
-            scaled_size = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation).size()
-            
-            # Reset pan if image is now smaller than display in both dimensions
-            if (scaled_size.width() <= self.image_label.width() and 
-                scaled_size.height() <= self.image_label.height()):
-                self.pan_offset_x = 0
-                self.pan_offset_y = 0
-        
-        self._update_zoom_display()
+        self.image_display.zoom_out()
 
     def reset_zoom(self):
         """Reset zoom to 100%."""
-        self.zoom_factor = 1.0
-        self.pan_offset_x = 0  # Reset pan when zooming to 100%
-        self.pan_offset_y = 0
-        self._update_zoom_display()
+        self.image_display.reset_zoom()
 
     def start_panning(self, pos):
         """Start panning operation."""
-        pass  # Just for signal connection, actual panning handled in handle_panning
+        self.image_display.start_panning(pos)
 
     def handle_panning(self, delta):
         """Handle panning movement with improved logic."""
-        if not self._cached_pixmap:
-            return
-            
-        # Calculate current image dimensions after zoom
-        base_size = self.image_label.size()
-        target_size = base_size * self.zoom_factor
-        scaled_size = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation).size()
-        
-        # Always allow panning if there's currently a pan offset (to reset position)
-        # or if image is larger than display area
-        can_pan_x = (scaled_size.width() > self.image_label.width()) or (self.pan_offset_x != 0)
-        can_pan_y = (scaled_size.height() > self.image_label.height()) or (self.pan_offset_y != 0)
-        
-        # Apply panning with constraints
-        if can_pan_x:
-            new_offset_x = self.pan_offset_x + delta.x()
-            # Constrain panning so image doesn't go too far off screen
-            max_offset_x = max(0, (scaled_size.width() - self.image_label.width()) // 2 + 50)
-            self.pan_offset_x = max(-max_offset_x, min(max_offset_x, new_offset_x))
-            
-        if can_pan_y:
-            new_offset_y = self.pan_offset_y + delta.y()
-            # Constrain panning so image doesn't go too far off screen  
-            max_offset_y = max(0, (scaled_size.height() - self.image_label.height()) // 2 + 50)
-            self.pan_offset_y = max(-max_offset_y, min(max_offset_y, new_offset_y))
-        
-        self._update_zoom_display()
+        self.image_display.handle_panning(delta)
 
     def end_panning(self):
         """End panning operation."""
-        pass  # Just for signal connection
+        self.image_display.end_panning()
 
     def reset_pan(self):
         """Reset pan position to center."""
-        self.pan_offset_x = 0
-        self.pan_offset_y = 0
-        self._update_zoom_display()
+        self.image_display.reset_pan()
     
     def show_controls(self):
         """Show the button overlay controls on mouse movement."""
         if self.current_image:
             self.button_overlay._show_controls()
     
+    
     def load_collection(self, collection: Collection, timer_enabled: bool = False, timer_interval: int = 60):
         """Load images from a collection with timer settings."""
         self.current_collection = collection
         self.folder = None  # Clear single folder
         
-        # Configure timer settings
-        self._auto_advance_active = timer_enabled
+        # Configure timer settings via MediaControlsManager
+        self.media_controls.set_timer_interval(timer_interval)
+        if timer_enabled:
+            self.media_controls.start_timer()
+        else:
+            self.media_controls.stop_timer()
+        
+        # Update local references for compatibility
         self.timer_interval = timer_interval
-        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
-        self.settings.setValue("timer_interval", self.timer_interval)
+        self._auto_advance_active = timer_enabled
         
         # For sorted collections (not random), we need to get sorted images
         if collection.sort_method == "random":
@@ -1129,13 +991,12 @@ class GlimpseViewer(QMainWindow):
             # Get sorted images directly from collection
             self.images = collection.get_sorted_images()
         
-        # Clear history
-        self.history.clear()
-        self.history_list.clear()
-        self.history_list.repaint()
-        self.current_image = None
-        self.history_index = -1
-        self.sorted_collection_index = 0  # Reset for new collection
+        # Clear history and set new images in history manager
+        self.history_manager.clear_history()
+        self.history_manager.set_images(self.images)
+        
+        # Update MediaControlsManager about image availability
+        self.media_controls.set_has_images(len(self.images) > 0)
         
         # Reset transformations
         self.flipped_h = False
@@ -1153,19 +1014,22 @@ class GlimpseViewer(QMainWindow):
             pass
         else:
             self.image_label.setText("No images found in selected collection.")
-        
-        self._reset_timer()
     
     def load_folder(self, folder_path: str, timer_enabled: bool = False, timer_interval: int = 60):
         """Load images from a single folder (quick shuffle mode) with timer settings."""
         self.folder = folder_path
         self.current_collection = None  # Clear collection
         
-        # Configure timer settings
-        self._auto_advance_active = timer_enabled
+        # Configure timer settings via MediaControlsManager
+        self.media_controls.set_timer_interval(timer_interval)
+        if timer_enabled:
+            self.media_controls.start_timer()
+        else:
+            self.media_controls.stop_timer()
+        
+        # Update local references for compatibility
         self.timer_interval = timer_interval
-        self.settings.setValue("auto_advance_enabled", self._auto_advance_active)
-        self.settings.setValue("timer_interval", self.timer_interval)
+        self._auto_advance_active = timer_enabled
         
         # Save as last folder for quick access
         self.settings.setValue("last_folder", folder_path)
@@ -1177,13 +1041,12 @@ class GlimpseViewer(QMainWindow):
         else:
             self.images = []  # User cancelled loading
         
-        # Clear history
-        self.history.clear()
-        self.history_list.clear()
-        self.history_list.repaint()
-        self.current_image = None
-        self.history_index = -1
-        self.sorted_collection_index = 0  # Reset for new collection
+        # Clear history and set new images in history manager
+        self.history_manager.clear_history()
+        self.history_manager.set_images(self.images)
+        
+        # Update MediaControlsManager about image availability
+        self.media_controls.set_has_images(len(self.images) > 0)
         
         # Reset transformations
         self.flipped_h = False
@@ -1201,8 +1064,6 @@ class GlimpseViewer(QMainWindow):
             pass
         else:
             self.image_label.setText("No images found in selected folder or its subfolders.")
-        
-        self._reset_timer()
     
     def _update_title_for_collection(self):
         """Update window title for collection mode."""

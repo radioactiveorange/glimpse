@@ -13,8 +13,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **With Python:** `python main.py`
 
 ### Dependencies
-- Install dependencies: `uv pip install pyside6` or `uv pip install -r pyproject.toml`
+- Install dependencies: `uv pip install pyside6`
+- For build dependencies: `uv pip install pyinstaller pyside6`
 - Python 3.13+ is required (specified in pyproject.toml)
+- Main dependency: PySide6>=6.9.1 (Qt for Python)
 
 ### Building Executable
 - Install PyInstaller: `uv pip install pyinstaller`
@@ -30,18 +32,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The application is organized into a clean modular structure:
 
 - **`main.py`**: Application entry point with startup dialog integration
-- **`src/ui/`**: User interface components
-  - `main_window.py`: Main application window (GlimpseViewer class)
-  - `startup_dialog.py`: Professional startup screen for collection management
-  - `loading_dialog.py`: Async loading dialog with progress indication for large collections
-  - `timer_dialog.py`: Timer configuration dialog for collections/folders
-  - `widgets.py`: Custom widgets (ClickableLabel, MinimalProgressBar, ButtonOverlay)
-  - `styles.py`: Dark theme stylesheet constants
-- **`src/core/`**: Core functionality
-  - `image_utils.py`: Image processing utilities and professional icon creation
-  - `collections.py`: Collection management system with JSON storage
-- **`app_icon.png`**: Custom application icon for built executables
-- **`icons/`**: SVG icon collection for UI elements
+- **`src/ui/`**: User interface components (~4900 lines)
+  - `main_window.py`: Main application window (GlimpseViewer class) - 1047 lines
+  - `startup_dialog.py`: Professional startup screen for collection management - 529 lines
+  - `widgets.py`: Custom widgets (ClickableLabel, MinimalProgressBar, ButtonOverlay) - 414 lines
+  - `collection_dialog.py`: Collection creation and editing dialogs - 307 lines
+  - `loading_dialog.py`: Async loading dialog with progress indication for large collections - 236 lines
+  - `timer_dialog.py`: Timer configuration dialog for collections/folders - 153 lines
+  - `styles.py`: Dark theme stylesheet constants - 203 lines
+  - **`components/`**: Reusable UI components
+    - `centered_dialog.py`: Base class for centered dialogs
+    - `sorting_panel.py`: Sort options panel for collections
+  - **`managers/`**: UI logic managers for separation of concerns
+    - `image_display_manager.py`: Zoom, pan, transformations - 380 lines
+    - `menu_manager.py`: Context menus and actions - 277 lines
+    - `history_manager.py`: Navigation history with thumbnails - 221 lines
+    - `media_controls_manager.py`: Timer controls - 172 lines
+- **`src/core/`**: Core functionality (~736 lines)
+  - `image_utils.py`: Image processing utilities and professional icon creation - 511 lines
+  - `collections.py`: Collection management system with JSON storage - 225 lines
+- **`app_icon.png/ico/svg`**: Multi-format application icons for cross-platform builds
+- **`icons/`**: SVG icon collection (19 icons) for UI elements - geometric style
 
 ### Key Features Implementation
 - **Startup System**: Professional dialog with collection management and timer configuration
@@ -80,16 +91,26 @@ The application uses a comprehensive dark theme stylesheet (`DARK_STYLESHEET`) t
 
 ## Development Guidelines
 
+### Manager Pattern Architecture
+The application uses a manager-based architecture to separate UI concerns:
+- **ImageDisplayManager**: Handles zoom, pan, image transformations, and display logic
+- **MediaControlsManager**: Manages timer controls (play/pause/stop) and their synchronization
+- **HistoryManager**: Manages navigation history and thumbnail panel
+- **MenuManager**: Handles context menus and keyboard shortcuts
+- Each manager is a QObject with its own signals and encapsulated logic
+- Managers communicate via signals to maintain loose coupling
+
 ### Code Patterns
 - **Qt Signal Architecture**: Use object-typed signals for complex data (tuples, custom objects)
 - **Error Handling**: Implement graceful fallbacks for cancelled dialogs and invalid data
-- **Icon System**: SVG-based icons with fallback to coded icons via `create_professional_icon()` with consistent sizing (16x16)
+- **Icon System**: SVG-based icons (19 available) with fallback to coded icons via `create_professional_icon()` with consistent sizing (16x16)
 - **Settings Management**: Use QSettings with proper cross-platform paths
 - **Image Loading**: Always use QPixmap with error handling for unsupported formats
 - **Memory Management**: Cache processed pixmaps (`_cached_pixmap`) for smooth UI operations
 - **Async Loading**: Use LoadingDialog with QThread (ImageLoadingWorker) for large collections
 - **Threading**: Worker threads should emit progress signals and handle cancellation gracefully
-- **Dialog Centering**: All dialogs implement `center_on_screen()` and `showEvent()` override for consistent positioning
+- **Dialog Centering**: All dialogs inherit from CenteredDialog or implement `center_on_screen()`
+- **Component Reusability**: Use components/ for reusable UI elements
 
 ### Current Status (Phase 4 Complete)
 All major features have been implemented:

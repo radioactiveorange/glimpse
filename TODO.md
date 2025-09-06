@@ -1,5 +1,8 @@
-## Code refactoring
-- [ ] refactor code so it will be easier to maintain
+## Bugs from refactoring
+- [ ] when clicking the buttons on 
+- [ ] icon in macos is not working, just showing console icon
+- [ ] installer doesn't really install it to apps in macos
+- [ ] add autoupdate check and link to release
 
 ## Build and releasing
 - [x] update keyboard shortcuts; add more if needed
