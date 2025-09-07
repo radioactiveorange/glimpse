@@ -30,17 +30,17 @@ class ImageDisplayManager(QObject):
         self.pan_offset_x = 0
         self.pan_offset_y = 0
         
-        # Transform state
+        # Transform state - initialize from settings
         self.is_flipped_h = False
         self.is_flipped_v = False
-        self.is_grayscale = False
+        self.is_grayscale = settings.value("grayscale_enabled", False, type=bool)
         
         # Image processing constants
         self.MIN_ZOOM = 0.1
         self.MAX_ZOOM = 10.0
         self.ZOOM_STEP = 0.1
     
-    def display_image(self, img_path):
+    def display_image(self, img_path, fast_mode=False):
         """Display an image with current zoom, pan, and transform settings."""
         if not img_path or not os.path.exists(img_path):
             self.image_label.clear()
@@ -55,17 +55,18 @@ class ImageDisplayManager(QObject):
         
         self.current_image = img_path
         
-        # Set background according to settings
-        mode = self.settings.value("bg_mode", "Black")
-        if mode == "Adaptive Color":
-            set_adaptive_bg(self.image_label, img_path)
-        elif mode == "Gray":
-            self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
-        else:
-            self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
+        # Set background according to settings (skip in fast mode if no transforms)
+        if not fast_mode or self.is_grayscale or self.is_flipped_h or self.is_flipped_v:
+            mode = self.settings.value("bg_mode", "Black")
+            if mode == "Adaptive Color":
+                set_adaptive_bg(self.image_label, img_path)
+            elif mode == "Gray":
+                self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
+            else:
+                self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
         
         # Load and process the image
-        success = self._load_and_process_image(img_path)
+        success = self._load_and_process_image(img_path, fast_mode)
         
         if success:
             self.image_changed.emit(img_path)
@@ -81,7 +82,7 @@ class ImageDisplayManager(QObject):
         except OSError:
             return False
     
-    def _load_and_process_image(self, img_path):
+    def _load_and_process_image(self, img_path, fast_mode=False):
         """Load image and apply current transforms and zoom."""
         try:
             pixmap = QPixmap(img_path)
@@ -90,7 +91,7 @@ class ImageDisplayManager(QObject):
                 self.image_label.setText("Failed to load image")
                 return False
             
-            return self._process_image_immediately(pixmap, img_path)
+            return self._process_image_immediately(pixmap, img_path, fast_mode)
             
         except Exception as e:
             print(f"Error loading image: {e}")
@@ -98,12 +99,18 @@ class ImageDisplayManager(QObject):
             self.image_label.setText("Error loading image")
             return False
     
-    def _process_image_immediately(self, pixmap, img_path):
+    def _process_image_immediately(self, pixmap, img_path, fast_mode=False):
         """Process image with transforms and display immediately."""
         try:
             # OPTIMIZATION: Use reference instead of expensive copy for caching
             # Only copy if we need to modify the pixmap
             self._cached_pixmap = pixmap
+            
+            # Fast mode: Skip transforms if none are active (for rapid navigation)
+            if fast_mode and not (self.is_flipped_h or self.is_flipped_v or self.is_grayscale):
+                # Direct display for speed
+                self._update_zoom_display()
+                return True
             
             # Apply transforms to cached pixmap
             transform = QTransform()
@@ -374,6 +381,18 @@ class ImageDisplayManager(QObject):
         self.is_flipped_h = False
         self.is_flipped_v = False
         self.is_grayscale = False
+        self.zoom_factor = 1.0
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        
+        self.zoom_changed.emit(self.zoom_factor)
+        self.transform_changed.emit()
+    
+    def reset_positional_transforms_without_display(self):
+        """Reset zoom/pan and flips but preserve user preferences like grayscale."""
+        self.is_flipped_h = False
+        self.is_flipped_v = False
+        # Preserve grayscale - it's a user preference that should persist across collections
         self.zoom_factor = 1.0
         self.pan_offset_x = 0
         self.pan_offset_y = 0

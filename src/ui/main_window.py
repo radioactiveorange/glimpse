@@ -168,10 +168,7 @@ class GlimpseViewer(QMainWindow):
         self.zoom_factor = 1.0
         self.pan_offset_x = 0
         self.pan_offset_y = 0
-        self.flipped_h = False
-        self.flipped_v = False
         self._cached_pixmap = None
-        self._pending_grayscale_path = None
         
         
         self.init_ui()
@@ -204,8 +201,12 @@ class GlimpseViewer(QMainWindow):
         # Connect menu manager signals
         self.menu_manager.previous_image_requested.connect(self.show_previous_image)
         # OPTIMIZATION: Use fast navigation for keyboard shortcuts
+        self.menu_manager.previous_image_requested.connect(lambda: self.show_previous_image(fast_navigation=True))
         self.menu_manager.next_image_requested.connect(lambda: self.show_next_image(fast_navigation=True))
         self.menu_manager.next_or_random_requested.connect(lambda: self.show_next_or_random_image(fast_navigation=True))
+        
+        # Connect navigation completion signal
+        self.menu_manager.navigation_completed.connect(self.menu_manager.on_navigation_completed)
         self.menu_manager.random_image_requested.connect(self.show_random_image)
         
         # Timer control signals
@@ -268,8 +269,7 @@ class GlimpseViewer(QMainWindow):
     
     def _on_history_navigation(self, img_path, is_forward):
         """Handle navigation from HistoryManager."""
-        # Reset transformations for navigation
-        self.image_display.reset_all_transforms()
+        # Navigate through history - preserve transforms (grayscale, flips)
         self.image_display.display_image(img_path)
         self.update_image_info(img_path)
         if self.media_controls.is_active():
@@ -354,7 +354,8 @@ class GlimpseViewer(QMainWindow):
         
         # Show initial image if available
         if not self._initial_image_shown and self.images:
-            self.show_random_image()
+            # For initial image load, preserve user settings (grayscale, etc.)
+            self.show_random_image(preserve_transforms=True)
             self._initial_image_shown = True
         
         # Update title and image info on show
@@ -372,6 +373,15 @@ class GlimpseViewer(QMainWindow):
         
         # Fall back to default handling
         super().keyPressEvent(event)
+    
+    def keyReleaseEvent(self, event):
+        """Handle key release events via MenuManager."""
+        # Delegate to menu manager for navigation key handling
+        if self.menu_manager.handle_key_release(event):
+            return  # Key was handled
+        
+        # Fall back to default handling
+        super().keyReleaseEvent(event)
     
     def _update_menu_manager_state(self):
         """Update MenuManager state for accurate menu handling."""
@@ -420,78 +430,47 @@ class GlimpseViewer(QMainWindow):
         """Stop and disable the auto-advance timer completely."""
         self.media_controls.stop_timer()
 
-    def show_previous_image(self):
+    def show_previous_image(self, fast_navigation=True):
         """Show the previous image in history."""
-        # Exact replica of original implementation for performance
         if self.history_manager.history_index > 0:
             self.history_manager.history_index -= 1
             img_path = self.history_manager.history[self.history_manager.history_index]
             
-            # Reset flip states directly (like original)
-            self.image_display.is_flipped_h = False
-            self.image_display.is_flipped_v = False
-            
-            # Call the original display pattern for performance
-            self.image_display._load_and_process_image(img_path)
-            # self.image_display._update_zoom_display()
-            
-            # Skip expensive operations during keyboard navigation (original performance optimization)
-            # Don't show button overlay or update background - keyboard navigation should be fast
-            
-            # Update state
-            self.image_display.current_image = img_path
-            self.history_manager.current_image = img_path
-            self.update_image_info(img_path)
-            
-            # Reset timer if active (simplified)
-            if self.media_controls.is_active():
-                self.media_controls.reset_timer()
+            # Navigate through history - preserve transforms (grayscale, flips)
+            # Use the image display manager with fast mode for rapid navigation
+            success = self.image_display.display_image(img_path, fast_mode=fast_navigation)
+            if success:
+                self.history_manager.current_image = img_path
+                
+                # Update UI based on navigation speed preference
+                if fast_navigation:
+                    self._update_title_only(img_path)
+                else:
+                    self.update_image_info(img_path)
+                
+                # Reset timer if active
+                if self.media_controls.is_active():
+                    self.media_controls.reset_timer()
 
     def show_next_image(self, fast_navigation=True):
         """Show the next image in history or a random one."""
-        # Exact replica of original implementation for performance
         if self.history_manager.history_index < len(self.history_manager.history) - 1:
             self.history_manager.history_index += 1
             img_path = self.history_manager.history[self.history_manager.history_index]
             
-            # Reset flip states directly (like original)
-            self.image_display.is_flipped_h = False
-            self.image_display.is_flipped_v = False
-            
-            # OPTIMIZATION: Fast path for keyboard navigation
-            if fast_navigation:
-                # Load image without expensive operations
-                pixmap = QPixmap(img_path)
-                if not pixmap.isNull():
-                    self.image_display._cached_pixmap = pixmap
-                    self.image_display.image_label.setPixmap(pixmap)
-                    
-                    # Update state quickly
-                    self.image_display.current_image = img_path
-                    self.history_manager.current_image = img_path
-                    
-                    # Skip expensive operations during fast navigation:
-                    # - Skip update_image_info (window title updates)
-                    # - Skip thumbnail generation (history updates)
-                    # - Skip button overlays
-                    # - Skip history item creation
-                    
-                    # Reset timer if active (simplified)
-                    if self.media_controls.is_active():
-                        self.media_controls.reset_timer()
-                else:
-                    # Fallback to normal loading if fast path fails
-                    self.image_display._load_and_process_image(img_path)
-                    self.image_display.current_image = img_path
-                    self.history_manager.current_image = img_path
-                    self.update_image_info(img_path)
-            else:
-                # Normal path with all features
-                self.image_display._load_and_process_image(img_path)
-                self.image_display.current_image = img_path
+            # Navigate through history - preserve transforms (grayscale, flips)
+            # Use the image display manager with fast mode for rapid navigation
+            success = self.image_display.display_image(img_path, fast_mode=fast_navigation)
+            if success:
                 self.history_manager.current_image = img_path
-                self.update_image_info(img_path)
                 
+                # Update UI based on navigation speed preference
+                if fast_navigation:
+                    self._update_title_only(img_path)
+                else:
+                    self.update_image_info(img_path)
+                
+                # Reset timer if active
                 if self.media_controls.is_active():
                     self.media_controls.reset_timer()
         else:
@@ -502,7 +481,8 @@ class GlimpseViewer(QMainWindow):
         if self.history_manager.has_next():
             self.show_next_image(fast_navigation=fast_navigation)
         else:
-            self.show_random_image()
+            # Continue navigation with preserved transforms (grayscale, flips)
+            self.show_random_image(preserve_transforms=True)
 
     def choose_folder(self):
         """Open folder selection dialog."""
@@ -575,14 +555,26 @@ class GlimpseViewer(QMainWindow):
             self._update_title_for_collection()
         else:
             self._update_title(img_path, info)
+    
+    def _update_title_only(self, img_path=None):
+        """Fast title update for rapid navigation without expensive operations."""
+        if img_path and os.path.exists(img_path):
+            base = os.path.basename(img_path)
+            if self.current_collection:
+                self._update_title_for_collection()
+            else:
+                self._update_title(img_path, base)  # Use filename as info during rapid nav
+        else:
+            self._update_title()
 
-    def show_random_image(self):
+    def show_random_image(self, preserve_transforms=False):
         """Display a random image from the current folder."""
         if not self.images:
             return
             
-        # Reset transformations
-        self.image_display.reset_all_transforms()
+        # Reset transformations only if explicitly requested (new random image)
+        if not preserve_transforms:
+            self.image_display.reset_all_transforms()
         
         # Check if we're using a sorted collection (not random)
         if self.current_collection and self.current_collection.sort_method != "random":
@@ -668,7 +660,8 @@ class GlimpseViewer(QMainWindow):
     def change_bg_mode(self, mode):
         """Change the background color mode."""
         self.settings.setValue("bg_mode", mode)
-        self.display_image(self.current_image) if self.current_image else None
+        if self.current_image:
+            self.image_display.display_image(self.current_image)
     
     def cycle_background_mode(self):
         """Cycle through background modes: Black -> Gray -> Adaptive Color -> Black."""
@@ -717,27 +710,17 @@ class GlimpseViewer(QMainWindow):
     def toggle_grayscale(self, checked):
         """Toggle grayscale mode."""
         self.settings.setValue("grayscale_enabled", checked)
-        if checked:
-            self.image_label.parentWidget().setStyleSheet("background-color: #3b7dd8; color: #fff; border-radius: 4px;")
-        else:
-            self.image_label.parentWidget().setStyleSheet("")
-        # Clear pending grayscale state
-        self._pending_grayscale_path = None
-        self.display_image(self.current_image) if self.current_image else None
+        self.image_display.is_grayscale = checked
+        if self.current_image:
+            self.image_display.display_image(self.current_image)
 
     def flip_horizontal(self):
         """Flip the current image horizontally."""
-        self.flipped_h = not self.flipped_h
-        if self.current_image:
-            self.display_image(self.current_image)  # Reprocess with flip
-            # self._update_zoom_display()
+        self.image_display.flip_horizontal()
 
     def flip_vertical(self):
         """Flip the current image vertically."""
-        self.flipped_v = not self.flipped_v
-        if self.current_image:
-            self.display_image(self.current_image)  # Reprocess with flip
-            # self._update_zoom_display()
+        self.image_display.flip_vertical()
 
     def overlay_resize_event(self, original_resize_event):
         """Create a custom resize event handler for overlay positioning."""
@@ -998,9 +981,8 @@ class GlimpseViewer(QMainWindow):
         # Update MediaControlsManager about image availability
         self.media_controls.set_has_images(len(self.images) > 0)
         
-        # Reset transformations
-        self.flipped_h = False
-        self.flipped_v = False
+        # Reset positional transforms but preserve user preferences (grayscale)
+        self.image_display.reset_positional_transforms_without_display()
         
         # Reset first image flag to show controls for new collection
         self._first_image_shown = False
@@ -1048,9 +1030,8 @@ class GlimpseViewer(QMainWindow):
         # Update MediaControlsManager about image availability
         self.media_controls.set_has_images(len(self.images) > 0)
         
-        # Reset transformations
-        self.flipped_h = False
-        self.flipped_v = False
+        # Reset positional transforms but preserve user preferences (grayscale)
+        self.image_display.reset_positional_transforms_without_display()
         
         # Reset first image flag to show controls for new folder
         self._first_image_shown = False
