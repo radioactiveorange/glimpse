@@ -198,9 +198,7 @@ class GlimpseViewer(QMainWindow):
         self.history_manager.history_navigation.connect(self._on_history_navigation)
         self.history_manager.random_image_requested.connect(self.show_random_image)
         
-        # Connect menu manager signals
-        self.menu_manager.previous_image_requested.connect(self.show_previous_image)
-        # OPTIMIZATION: Use fast navigation for keyboard shortcuts
+        # Connect menu manager signals with fast navigation for keyboard shortcuts
         self.menu_manager.previous_image_requested.connect(lambda: self.show_previous_image(fast_navigation=True))
         self.menu_manager.next_image_requested.connect(lambda: self.show_next_image(fast_navigation=True))
         self.menu_manager.next_or_random_requested.connect(lambda: self.show_next_or_random_image(fast_navigation=True))
@@ -435,19 +433,29 @@ class GlimpseViewer(QMainWindow):
         if self.history_manager.history_index > 0:
             self.history_manager.history_index -= 1
             img_path = self.history_manager.history[self.history_manager.history_index]
-            
+
+            # Preload previous images for smooth navigation
+            if fast_navigation and self.history_manager.history_index > 0:
+                preload_paths = []
+                for i in range(1, 6):  # Preload 5 previous images
+                    idx = self.history_manager.history_index - i
+                    if idx >= 0:
+                        preload_paths.append(self.history_manager.history[idx])
+                if preload_paths:
+                    self.image_display.preload_images(preload_paths)
+
             # Navigate through history - preserve transforms (grayscale, flips)
             # Use the image display manager with fast mode for rapid navigation
             success = self.image_display.display_image(img_path, fast_mode=fast_navigation)
             if success:
                 self.history_manager.current_image = img_path
-                
+
                 # Update UI based on navigation speed preference
                 if fast_navigation:
                     self._update_title_only(img_path)
                 else:
                     self.update_image_info(img_path)
-                
+
                 # Reset timer if active
                 if self.media_controls.is_active():
                     self.media_controls.reset_timer()
@@ -457,19 +465,29 @@ class GlimpseViewer(QMainWindow):
         if self.history_manager.history_index < len(self.history_manager.history) - 1:
             self.history_manager.history_index += 1
             img_path = self.history_manager.history[self.history_manager.history_index]
-            
+
+            # Preload next images for smooth forward navigation
+            if fast_navigation:
+                preload_paths = []
+                for i in range(1, 6):  # Preload 5 next images
+                    idx = self.history_manager.history_index + i
+                    if idx < len(self.history_manager.history):
+                        preload_paths.append(self.history_manager.history[idx])
+                if preload_paths:
+                    self.image_display.preload_images(preload_paths)
+
             # Navigate through history - preserve transforms (grayscale, flips)
             # Use the image display manager with fast mode for rapid navigation
             success = self.image_display.display_image(img_path, fast_mode=fast_navigation)
             if success:
                 self.history_manager.current_image = img_path
-                
+
                 # Update UI based on navigation speed preference
                 if fast_navigation:
                     self._update_title_only(img_path)
                 else:
                     self.update_image_info(img_path)
-                
+
                 # Reset timer if active
                 if self.media_controls.is_active():
                     self.media_controls.reset_timer()

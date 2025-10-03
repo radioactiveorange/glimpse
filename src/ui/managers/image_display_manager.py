@@ -1,11 +1,84 @@
 """Image display management - handles zoom, pan, transformations, and image processing."""
 
 import os
+import time
+from PIL import Image
+from turbojpeg import TurboJPEG
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtGui import QPixmap, QImage, QTransform, QPainter, QColor
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt, QObject, Signal, QThread
 
 from ...core.image_utils import set_adaptive_bg
+
+# Performance benchmarking flag
+BENCHMARK = False
+
+# Initialize TurboJPEG for blazing fast JPEG loading
+try:
+    jpeg = TurboJPEG()
+    TURBOJPEG_AVAILABLE = True
+except Exception as e:
+    print(f"TurboJPEG not available: {e}")
+    TURBOJPEG_AVAILABLE = False
+
+
+class ImagePreloader(QThread):
+    """Background thread for pre-loading images."""
+    image_loaded = Signal(str, QPixmap)  # path, pixmap
+
+    def __init__(self):
+        super().__init__()
+        self.paths_to_load = []
+        self.running = True
+
+    def add_path(self, path):
+        """Add a path to the preload queue."""
+        if path not in self.paths_to_load:
+            self.paths_to_load.append(path)
+
+    def clear_queue(self):
+        """Clear the preload queue."""
+        self.paths_to_load.clear()
+
+    def run(self):
+        """Load images in background using fast Pillow library."""
+        while self.running:
+            if self.paths_to_load:
+                path = self.paths_to_load.pop(0)
+                try:
+                    if os.path.exists(path):
+                        # Use Pillow for faster image loading
+                        pil_image = Image.open(path)
+
+                        # Use draft mode for JPEG - loads reduced size for speed
+                        if pil_image.format == 'JPEG':
+                            # Load at ~1920x1080 max for speed (most screens)
+                            pil_image.draft('RGB', (1920, 1080))
+
+                        # Convert PIL image to QPixmap
+                        pixmap = self._pil_to_qpixmap(pil_image)
+
+                        if not pixmap.isNull():
+                            self.image_loaded.emit(path, pixmap)
+                except Exception:
+                    pass  # Silently skip problematic images
+            else:
+                self.msleep(10)  # Shorter sleep for more responsiveness
+
+    def _pil_to_qpixmap(self, pil_image):
+        """Convert PIL Image to QPixmap efficiently."""
+        # Convert to RGB if needed
+        if pil_image.mode != 'RGB':
+            pil_image = pil_image.convert('RGB')
+
+        # Get image data
+        data = pil_image.tobytes('raw', 'RGB')
+        qimage = QImage(data, pil_image.width, pil_image.height, pil_image.width * 3, QImage.Format_RGB888)
+        return QPixmap.fromImage(qimage)
+
+    def stop(self):
+        """Stop the preloader thread."""
+        self.running = False
 
 
 class ImageDisplayManager(QObject):
@@ -20,57 +93,97 @@ class ImageDisplayManager(QObject):
         super().__init__()
         self.image_label = image_label
         self.settings = settings
-        
+
         # Image state
         self.current_image = None
         self._cached_pixmap = None
-        
+
+        # Pre-loading cache for fast navigation
+        self._pixmap_cache = {}  # path -> pixmap
+        self._max_cache_size = 10  # Keep last 10 images in memory
+
+        # Background preloader
+        self.preloader = ImagePreloader()
+        self.preloader.image_loaded.connect(self._on_image_preloaded)
+        self.preloader.start()
+
         # Zoom and pan state
         self.zoom_factor = 1.0
         self.pan_offset_x = 0
         self.pan_offset_y = 0
-        
+
         # Transform state - initialize from settings
         self.is_flipped_h = False
         self.is_flipped_v = False
         self.is_grayscale = settings.value("grayscale_enabled", False, type=bool)
-        
+
         # Image processing constants
         self.MIN_ZOOM = 0.1
         self.MAX_ZOOM = 10.0
         self.ZOOM_STEP = 0.1
+
+    def _on_image_preloaded(self, path, pixmap):
+        """Handle preloaded image from background thread."""
+        # Add to cache
+        self._pixmap_cache[path] = pixmap
+
+        # Limit cache size (LRU-style)
+        if len(self._pixmap_cache) > self._max_cache_size:
+            # Remove oldest (first) item
+            first_key = next(iter(self._pixmap_cache))
+            del self._pixmap_cache[first_key]
+
+    def preload_images(self, paths):
+        """Request preloading of images in background."""
+        for path in paths[:5]:  # Preload next 5 images
+            if path not in self._pixmap_cache and os.path.exists(path):
+                self.preloader.add_path(path)
     
     def display_image(self, img_path, fast_mode=False):
         """Display an image with current zoom, pan, and transform settings."""
+        if BENCHMARK:
+            start_total = time.perf_counter()
+
         if not img_path or not os.path.exists(img_path):
             self.image_label.clear()
             self.image_label.setText("Image not found")
             return False
-        
+
         # Check if image is too large for Qt
         if self._is_image_too_large(img_path):
             self.image_label.clear()
             self.image_label.setText("Image too large to display")
             return False
-        
+
         self.current_image = img_path
-        
-        # Set background according to settings (skip in fast mode if no transforms)
-        if not fast_mode or self.is_grayscale or self.is_flipped_h or self.is_flipped_v:
-            mode = self.settings.value("bg_mode", "Black")
-            if mode == "Adaptive Color":
-                set_adaptive_bg(self.image_label, img_path)
-            elif mode == "Gray":
-                self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
-            else:
-                self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
-        
+
+        # Set background according to settings (skip adaptive background in fast mode - expensive!)
+        if BENCHMARK:
+            start_bg = time.perf_counter()
+
+        mode = self.settings.value("bg_mode", "Black")
+        if mode == "Adaptive Color" and not fast_mode:
+            set_adaptive_bg(self.image_label, img_path)
+        elif mode == "Gray":
+            self.image_label.parentWidget().setStyleSheet("background-color: #444444;")
+        elif mode == "Black" or (mode == "Adaptive Color" and fast_mode):
+            # Use black background in fast mode even for adaptive (avoid expensive sampling)
+            self.image_label.parentWidget().setStyleSheet("background-color: #000000;")
+
+        if BENCHMARK:
+            print(f"  BG: {(time.perf_counter() - start_bg)*1000:.1f}ms")
+
         # Load and process the image
         success = self._load_and_process_image(img_path, fast_mode)
-        
+
         if success:
             self.image_changed.emit(img_path)
-        
+
+        if BENCHMARK:
+            total_time = (time.perf_counter() - start_total) * 1000
+            print(f"TOTAL DISPLAY: {total_time:.1f}ms (fast_mode={fast_mode})")
+            print("-" * 50)
+
         return success
     
     def _is_image_too_large(self, img_path):
@@ -85,52 +198,163 @@ class ImageDisplayManager(QObject):
     def _load_and_process_image(self, img_path, fast_mode=False):
         """Load image and apply current transforms and zoom."""
         try:
-            pixmap = QPixmap(img_path)
+            if BENCHMARK:
+                start_load = time.perf_counter()
+
+            # Check cache first for instant loading
+            cache_hit = img_path in self._pixmap_cache
+            if cache_hit:
+                pixmap = self._pixmap_cache[img_path]
+                if BENCHMARK:
+                    print(f"  CACHE HIT: {(time.perf_counter() - start_load)*1000:.1f}ms")
+            else:
+                # Cache miss - load from disk using fast Pillow
+                pixmap = self._load_with_pillow(img_path, fast_mode)
+                if BENCHMARK:
+                    print(f"  LOAD DISK (Pillow): {(time.perf_counter() - start_load)*1000:.1f}ms")
+
+                if not pixmap.isNull():
+                    # Add to cache for future use
+                    self._pixmap_cache[img_path] = pixmap
+                    # Limit cache size
+                    if len(self._pixmap_cache) > self._max_cache_size:
+                        first_key = next(iter(self._pixmap_cache))
+                        del self._pixmap_cache[first_key]
+
             if pixmap.isNull():
                 self.image_label.clear()
                 self.image_label.setText("Failed to load image")
                 return False
-            
+
             return self._process_image_immediately(pixmap, img_path, fast_mode)
-            
+
         except Exception as e:
             print(f"Error loading image: {e}")
-            self.image_label.clear() 
+            self.image_label.clear()
             self.image_label.setText("Error loading image")
             return False
+
+    def _load_with_pillow(self, img_path, fast_mode=False):
+        """Load image using fastest available method: TurboJPEG > Pillow > Qt."""
+        try:
+            # Check if it's a JPEG and TurboJPEG is available
+            file_ext = os.path.splitext(img_path)[1].lower()
+            is_jpeg = file_ext in ('.jpg', '.jpeg')
+
+            if is_jpeg and TURBOJPEG_AVAILABLE:
+                # Use TurboJPEG for blazing fast JPEG loading (1.5x faster!)
+                if BENCHMARK:
+                    print(f"  Using TurboJPEG")
+
+                with open(img_path, 'rb') as f:
+                    jpeg_data = f.read()
+
+                # Decode JPEG to RGB array
+                if fast_mode:
+                    # Use fast scaling for speed - TurboJPEG can scale during decode!
+                    container_size = self.image_label.size()
+                    # Scale factors: 1/8, 1/4, 1/2, 1
+                    # Use 1/2 for fast mode
+                    bgr_array = jpeg.decode(jpeg_data, scaling_factor=(1, 2))
+                else:
+                    bgr_array = jpeg.decode(jpeg_data)
+
+                # Convert BGR to RGB
+                import numpy as np
+                rgb_array = np.ascontiguousarray(bgr_array[:, :, ::-1])
+
+                # Create QImage from numpy array
+                height, width, channel = rgb_array.shape
+                bytes_per_line = 3 * width
+                qimage = QImage(rgb_array.data, width, height, bytes_per_line, QImage.Format_RGB888)
+
+                # Keep reference to prevent garbage collection
+                qimage._array_ref = rgb_array
+
+                return QPixmap.fromImage(qimage)
+
+            else:
+                # Use Pillow for non-JPEG images
+                pil_image = Image.open(img_path)
+
+                # Use draft mode for JPEG - must be called BEFORE loading pixel data!
+                if pil_image.format == 'JPEG' and fast_mode:
+                    container_size = self.image_label.size()
+                    max_size = (container_size.width(), container_size.height())
+                    pil_image.draft('RGB', max_size)
+
+                # Load pixel data
+                pil_image.load()
+
+                # Convert to RGB if needed
+                if pil_image.mode not in ('RGB', 'RGBA'):
+                    pil_image = pil_image.convert('RGB')
+
+                # Convert PIL to QPixmap
+                if pil_image.mode == 'RGBA':
+                    data = pil_image.tobytes('raw', 'RGBA')
+                    qimage = QImage(data, pil_image.width, pil_image.height, pil_image.width * 4, QImage.Format_RGBA8888)
+                else:
+                    data = pil_image.tobytes('raw', 'RGB')
+                    qimage = QImage(data, pil_image.width, pil_image.height, pil_image.width * 3, QImage.Format_RGB888)
+
+                return QPixmap.fromImage(qimage)
+
+        except Exception as e:
+            # Fallback to Qt loading if everything fails
+            if BENCHMARK:
+                print(f"  Fast loading failed, using Qt: {e}")
+            return QPixmap(img_path)
     
     def _process_image_immediately(self, pixmap, img_path, fast_mode=False):
         """Process image with transforms and display immediately."""
         try:
+            if BENCHMARK:
+                start_process = time.perf_counter()
+
             # OPTIMIZATION: Use reference instead of expensive copy for caching
             # Only copy if we need to modify the pixmap
             self._cached_pixmap = pixmap
-            
+
             # Fast mode: Skip transforms if none are active (for rapid navigation)
             if fast_mode and not (self.is_flipped_h or self.is_flipped_v or self.is_grayscale):
-                # Direct display for speed
-                self._update_zoom_display()
+                # Direct display for speed with fast transformation
+                self._update_zoom_display(use_fast_transform=True)
+                if BENCHMARK:
+                    print(f"  PROCESS (fast, no transforms): {(time.perf_counter() - start_process)*1000:.1f}ms")
                 return True
-            
+
             # Apply transforms to cached pixmap
+            if BENCHMARK:
+                start_transform = time.perf_counter()
+
             transform = QTransform()
-            
+
             if self.is_flipped_h:
                 transform = transform.scale(-1, 1)
             if self.is_flipped_v:
                 transform = transform.scale(1, -1)
-            
+
             if self.is_flipped_h or self.is_flipped_v:
-                self._cached_pixmap = self._cached_pixmap.transformed(transform, Qt.SmoothTransformation)
-            
+                # Use fast transform in fast_mode
+                transform_mode = Qt.FastTransformation if fast_mode else Qt.SmoothTransformation
+                self._cached_pixmap = self._cached_pixmap.transformed(transform, transform_mode)
+
             # Apply grayscale if enabled
             if self.is_grayscale:
                 image = self._cached_pixmap.toImage()
                 image = self._apply_improved_grayscale(image)
                 self._cached_pixmap = QPixmap.fromImage(image)
-            
-            # Update display with zoom
-            self._update_zoom_display()
+
+            if BENCHMARK and (self.is_flipped_h or self.is_flipped_v or self.is_grayscale):
+                print(f"  TRANSFORM: {(time.perf_counter() - start_transform)*1000:.1f}ms")
+
+            # Update display with zoom - use fast transform in fast mode
+            self._update_zoom_display(use_fast_transform=fast_mode)
+
+            if BENCHMARK:
+                print(f"  PROCESS (with transforms): {(time.perf_counter() - start_process)*1000:.1f}ms")
+
             return True
             
         except Exception as e:
@@ -143,15 +367,18 @@ class ImageDisplayManager(QObject):
         """Apply improved grayscale conversion."""
         return image.convertToFormat(QImage.Format_Grayscale8)
     
-    def _update_zoom_display(self):
+    def _update_zoom_display(self, use_fast_transform=False):
         """Update the image display with current zoom and pan settings."""
+        if BENCHMARK:
+            start_zoom = time.perf_counter()
+
         if not self._cached_pixmap:
             return
-        
+
         # Get container size (label size)
         container_size = self.image_label.size()
         original_size = self._cached_pixmap.size()
-        
+
         # Calculate target size based on zoom
         if self.zoom_factor == 1.0:
             # For zoom level 1.0, fit image to container
@@ -165,34 +392,59 @@ class ImageDisplayManager(QObject):
                 # Scale from fit-to-container size for large images
                 fit_size = original_size.scaled(container_size, Qt.KeepAspectRatio)
                 target_size = fit_size * self.zoom_factor
-        
-        # Scale the cached pixmap
-        scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        if BENCHMARK:
+            start_scale = time.perf_counter()
+
+        # Scale the cached pixmap - use fast transform for rapid navigation
+        transform_mode = Qt.FastTransformation if use_fast_transform else Qt.SmoothTransformation
+        scaled = self._cached_pixmap.scaled(target_size, Qt.KeepAspectRatio, transform_mode)
+
+        if BENCHMARK:
+            print(f"  SCALE ({transform_mode}): {(time.perf_counter() - start_scale)*1000:.1f}ms")
         
         # Apply panning - always use canvas when there's any pan offset
         if self.pan_offset_x != 0 or self.pan_offset_y != 0:
+            if BENCHMARK:
+                start_pan = time.perf_counter()
+
             # Create a canvas the size of the label
             canvas = QPixmap(self.image_label.size())
-            
+
             # Get the appropriate background color based on current mode
             bg_color = self._get_current_background_color()
             canvas.fill(bg_color)
-            
+
             # Paint the scaled image with offset
             painter = QPainter(canvas)
             painter.setRenderHint(QPainter.SmoothPixmapTransform)
-            
+
             # Calculate position to center the image with pan offset
             x = (self.image_label.width() - scaled.width()) // 2 + self.pan_offset_x
             y = (self.image_label.height() - scaled.height()) // 2 + self.pan_offset_y
-            
+
             # Draw the scaled image at offset position
             painter.drawPixmap(x, y, scaled)
             painter.end()
-            
+
             self.image_label.setPixmap(canvas)
+
+            if BENCHMARK:
+                print(f"  PAN: {(time.perf_counter() - start_pan)*1000:.1f}ms")
         else:
+            if BENCHMARK:
+                start_set = time.perf_counter()
+
             self.image_label.setPixmap(scaled)
+            # Force immediate update in fast mode - don't wait for event loop
+            if use_fast_transform:
+                self.image_label.repaint()
+
+            if BENCHMARK:
+                print(f"  SET_PIXMAP: {(time.perf_counter() - start_set)*1000:.1f}ms")
+
+        if BENCHMARK:
+            print(f"  ZOOM_DISPLAY: {(time.perf_counter() - start_zoom)*1000:.1f}ms")
     
     def _get_current_background_color(self):
         """Get the current background color as QColor based on the active mode."""

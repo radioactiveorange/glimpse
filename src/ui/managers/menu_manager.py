@@ -56,20 +56,12 @@ class MenuManager(QObject):
         self.zoom_factor = 1.0
         self.current_image = None
         
-        # Key repeat and rapid navigation handling
-        self.key_repeat_timer = QTimer()
-        self.key_repeat_timer.setSingleShot(True)
-        self.key_repeat_timer.timeout.connect(self._process_pending_navigation)
-        
-        # Navigation queue for rapid key spamming
+        # Navigation queue for rapid key handling (including key repeat)
         self.navigation_queue = []
         self.navigation_timer = QTimer()
         self.navigation_timer.setSingleShot(True)
         self.navigation_timer.timeout.connect(self._process_navigation_queue)
-        self.navigation_delay = 50  # ms - much shorter for responsiveness
-        
-        self.pending_direction = None
-        self.key_repeat_delay = 150  # ms
+        self.navigation_delay = 1  # ms - minimal delay for maximum speed
         self.is_navigating = False  # Prevent navigation queue buildup
         
     def set_settings(self, settings):
@@ -124,50 +116,17 @@ class MenuManager(QObject):
     
     def _handle_navigation_key(self, direction, is_auto_repeat):
         """Handle navigation keys with smart queuing for rapid navigation."""
-        if not is_auto_repeat:
-            # First press or rapid spamming - use smart queuing
-            self._queue_navigation(direction)
-        else:
-            # Auto-repeat - just update pending direction, don't navigate yet
-            self.pending_direction = direction
-            # Restart the timer to delay the final navigation
-            self.key_repeat_timer.start(self.key_repeat_delay)
+        # Queue navigation for both first press and auto-repeat (holding key)
+        self._queue_navigation(direction)
     
     def _queue_navigation(self, direction):
-        """Queue navigation with smart consolidation to handle rapid key spamming."""
-        # Add to queue
+        """Queue navigation for continuous cycling like a normal image viewer."""
+        # Add to queue without consolidation - process each keypress
         self.navigation_queue.append(direction)
-        
-        # Smart queue consolidation: merge consecutive same directions
-        self._consolidate_navigation_queue()
-        
-        # Start/restart processing timer
-        self.navigation_timer.start(self.navigation_delay)
-    
-    def _consolidate_navigation_queue(self):
-        """Consolidate navigation queue to prevent excessive operations."""
-        if len(self.navigation_queue) <= 1:
-            return
-        
-        # Count net direction changes
-        net_right = 0
-        for direction in self.navigation_queue:
-            if direction == 'right':
-                net_right += 1
-            else:  # left
-                net_right -= 1
-        
-        # Replace queue with net result
-        self.navigation_queue.clear()
-        if net_right > 0:
-            # Net movement right
-            for _ in range(min(net_right, 5)):  # Limit to prevent excessive jumping
-                self.navigation_queue.append('right')
-        elif net_right < 0:
-            # Net movement left  
-            for _ in range(min(abs(net_right), 5)):  # Limit to prevent excessive jumping
-                self.navigation_queue.append('left')
-        # If net_right == 0, queue stays empty (cancelled out)
+
+        # Process immediately if not already navigating
+        if not self.is_navigating and not self.navigation_timer.isActive():
+            self._process_navigation_queue()
     
     def _process_navigation_queue(self):
         """Process the navigation queue with throttling."""
@@ -201,25 +160,10 @@ class MenuManager(QObject):
         if self.navigation_queue and not self.navigation_timer.isActive():
             self.navigation_timer.start(self.navigation_delay)
     
-    def _process_pending_navigation(self):
-        """Process the final navigation after key repeat stops."""
-        if self.pending_direction:
-            # Execute final navigation to ensure we're at the correct position
-            if self.pending_direction == 'left':
-                self.previous_image_requested.emit()
-            else:  # right
-                self.next_or_random_requested.emit()
-            self.pending_direction = None
-    
     def handle_key_release(self, event):
-        """Handle key release events to finalize navigation."""
-        if event.key() in [Qt.Key_Left, Qt.Key_Right] and not event.isAutoRepeat():
-            # Key was released - stop the timer and process final navigation
-            if self.key_repeat_timer.isActive():
-                self.key_repeat_timer.stop()
-                self._process_pending_navigation()
-            return True
-        return False  # Key not handled
+        """Handle key release events."""
+        # No special handling needed - navigation happens on key press/repeat
+        return False
         
     def _cycle_background_mode(self):
         """Cycle through background modes."""
