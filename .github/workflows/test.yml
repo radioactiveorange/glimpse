@@ -48,11 +48,22 @@ jobs:
             libxcb-render-util0 \
             libxcb-xkb1 \
             libxkbcommon-x11-0 \
-            xvfb
+            xvfb \
+            libturbojpeg-dev
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install jpeg-turbo
+
+      - name: Install system dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install libjpeg-turbo --yes
 
       - name: Install dependencies
         run: |
-          uv pip install --system pyside6
+          uv sync
 
       - name: Test core functionality
         run: |
