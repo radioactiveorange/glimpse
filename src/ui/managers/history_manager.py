@@ -15,23 +15,16 @@ class HistoryManager(QObject):
     history_navigation = Signal(str, bool)  # Emitted for prev/next navigation (path, is_forward)
     random_image_requested = Signal()  # Emitted when random image is needed
     
-    def __init__(self, parent=None):
+    def __init__(self, history_list_widget, parent=None):
         super().__init__(parent)
-        
-        # History data
+
         self.history = []
         self.history_index = -1
         self.sorted_collection_index = 0
-        
-        # Image collections
+
         self.images = []
         self.current_image = None
-        
-        # History panel widget (created externally, managed here)
-        self.history_list = None
-        
-    def setup_history_panel(self, history_list_widget):
-        """Setup the history panel widget."""
+
         self.history_list = history_list_widget
         self.history_list.itemClicked.connect(self.on_history_clicked)
         

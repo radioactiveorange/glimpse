@@ -1,8 +1,62 @@
 """UI styling constants and themes."""
 
-from PySide6.QtWidgets import QPushButton
-from PySide6.QtCore import QEvent
+from PySide6.QtWidgets import QPushButton, QDialog, QVBoxLayout, QHBoxLayout, QLabel
+from PySide6.QtCore import QEvent, Qt
 from ..core.image_utils import create_professional_icon
+
+
+def confirm_dialog(parent, title: str, message: str, confirm_text: str = "Yes",
+                   cancel_text: str = "No", destructive: bool = False) -> bool:
+    """Show a styled Yes/No confirmation dialog. Returns True if confirmed."""
+    dlg = QDialog(parent)
+    dlg.setWindowTitle(title)
+    dlg.setModal(True)
+    dlg.setMinimumWidth(340)
+
+    layout = QVBoxLayout(dlg)
+    layout.setSpacing(16)
+    layout.setContentsMargins(20, 20, 20, 16)
+
+    msg_label = QLabel(message)
+    msg_label.setWordWrap(True)
+    msg_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+    layout.addWidget(msg_label)
+
+    btn_row = QHBoxLayout()
+    btn_row.addStretch()
+
+    cancel_btn = create_dialog_action_button(cancel_text, icon_name="cancel")
+    cancel_btn.clicked.connect(dlg.reject)
+    btn_row.addWidget(cancel_btn)
+
+    confirm_icon = "delete" if destructive else "ok"
+    confirm_btn = create_dialog_action_button(confirm_text, primary=not destructive, icon_name=confirm_icon)
+    if destructive:
+        confirm_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #c62828;
+                color: white;
+                font-size: 12px;
+                font-weight: 500;
+                padding: 6px 16px;
+                border: none;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background-color: #b71c1c; }
+            QPushButton:pressed { background-color: #8e0000; }
+        """)
+    confirm_btn.clicked.connect(dlg.accept)
+    btn_row.addWidget(confirm_btn)
+
+    layout.addLayout(btn_row)
+
+    # Apply dark theme to match app style
+    dlg.setStyleSheet("""
+        QDialog { background-color: #2b2d30; }
+        QLabel { color: #d4d4d4; font-size: 12px; }
+    """)
+
+    return dlg.exec() == QDialog.Accepted
 
 
 def create_standard_button(text: str, icon_name: str = None, large: bool = False) -> QPushButton:
@@ -98,21 +152,24 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
     button = QPushButton(text)
     button.setMinimumHeight(32)
     button.setMinimumWidth(80)
-    
+
     # Add icon if specified with disabled state support
     if icon_name:
-        # Create both enabled and disabled icons
-        enabled_icon = create_professional_icon(icon_name, 16, "#ffffff")
-        disabled_icon = create_professional_icon(icon_name, 16, "#666666")
-        
-        # Set the enabled icon
+        # Semantic colors so confirm/cancel are instantly distinguishable at a glance
+        _ICON_COLORS = {
+            "ok": "#4caf50",      # green – confirm / save
+            "cancel": "#f44336",  # red   – cancel / discard
+            "delete": "#f44336",  # red   – destructive
+            "play": "#4caf50",    # green – start / open
+        }
+        icon_color = _ICON_COLORS.get(icon_name, "#ffffff")
+        enabled_icon = create_professional_icon(icon_name, 18, icon_color)
+        disabled_icon = create_professional_icon(icon_name, 18, "#555555")
+
         button.setIcon(enabled_icon)
-        
-        # Store disabled icon for state changes
         button._disabled_icon = disabled_icon
         button._enabled_icon = enabled_icon
-        
-        # Override changeEvent to handle icon state changes
+
         original_change_event = button.changeEvent
         def change_event_handler(event):
             if event.type() == QEvent.Type.EnabledChange:
@@ -122,7 +179,7 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
                     button.setIcon(button._disabled_icon)
             original_change_event(event)
         button.changeEvent = change_event_handler
-    
+
     if primary:
         button.setStyleSheet("""
             QPushButton {

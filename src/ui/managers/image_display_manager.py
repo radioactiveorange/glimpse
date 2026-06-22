@@ -17,8 +17,7 @@ BENCHMARK = False
 try:
     jpeg = TurboJPEG()
     TURBOJPEG_AVAILABLE = True
-except Exception as e:
-    print(f"TurboJPEG not available: {e}")
+except Exception:
     TURBOJPEG_AVAILABLE = False
 
 
@@ -77,8 +76,9 @@ class ImagePreloader(QThread):
         return QPixmap.fromImage(qimage)
 
     def stop(self):
-        """Stop the preloader thread."""
+        """Stop the preloader thread and wait for it to finish."""
         self.running = False
+        self.wait()
 
 
 class ImageDisplayManager(QObject):
@@ -121,6 +121,10 @@ class ImageDisplayManager(QObject):
         self.MIN_ZOOM = 0.1
         self.MAX_ZOOM = 10.0
         self.ZOOM_STEP = 0.1
+
+    def cleanup(self):
+        """Stop background threads; call from the main window's closeEvent."""
+        self.preloader.stop()
 
     def _on_image_preloaded(self, path, pixmap):
         """Handle preloaded image from background thread."""
@@ -449,25 +453,20 @@ class ImageDisplayManager(QObject):
     def _get_current_background_color(self):
         """Get the current background color as QColor based on the active mode."""
         mode = self.settings.value("bg_mode", "Black")
-        
+
         if mode == "Gray":
             return QColor(0x44, 0x44, 0x44)  # #444444
         elif mode == "Adaptive Color":
-            # Try to extract the current background color from the parent widget
             parent = self.image_label.parentWidget()
             if parent:
                 style = parent.styleSheet()
-                # Look for rgb() or background-color in the stylesheet
                 import re
-                rgb_match = re.search(r'rgb\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)', style)
+                rgb_match = re.search(r'rgb\((\d+),\s*(\d+),\s*(\d+)\)', style)
                 if rgb_match:
                     r, g, b = map(int, rgb_match.groups())
                     return QColor(r, g, b)
-            
-            # Fallback to dark gray if we can't extract the adaptive color
             return QColor(40, 40, 40)
         else:
-            # Default to black
             return QColor(0, 0, 0)
     
     # Zoom Methods

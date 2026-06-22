@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QFont
 from PySide6.QtCore import Qt, QTimer
-from .styles import create_dialog_action_button, create_standard_button
+from .styles import create_dialog_action_button, create_standard_button, confirm_dialog
 from .components.centered_dialog import CenteredDialog
 from .components.sorting_panel import SortingPanel
 from ..core.collections import Collection
@@ -245,10 +245,13 @@ class CollectionDialog(CenteredDialog):
         current = self.folders_list.currentItem()
         if current:
             folder_path = current.text()
-            reply = QMessageBox.question(self, "Remove Folder", 
-                                       f"Remove this folder from the collection?\n\n{folder_path}")
-            
-            if reply == QMessageBox.Yes:
+            confirmed = confirm_dialog(
+                self, "Remove Folder",
+                f"Remove this folder from the collection?\n\n{folder_path}",
+                confirm_text="Remove", cancel_text="Cancel", destructive=True,
+            )
+
+            if confirmed:
                 row = self.folders_list.row(current)
                 self.folders_list.takeItem(row)
                 if folder_path in self.folder_paths:

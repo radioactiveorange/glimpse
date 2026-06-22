@@ -42,19 +42,19 @@ def main():
             return
         collection, timer_enabled, timer_interval = data
         viewer = GlimpseViewer()
-        viewer.load_collection(collection, timer_enabled, timer_interval)
         viewer.show()
-        viewer.center_on_screen()  # Explicitly center after show
-    
+        viewer.center_on_screen()
+        viewer.load_collection(collection, timer_enabled, timer_interval)
+
     def on_folder_selected(data):
         nonlocal viewer
         if not data or len(data) != 3:
             return
         folder, timer_enabled, timer_interval = data
         viewer = GlimpseViewer()
-        viewer.load_folder(folder, timer_enabled, timer_interval)
         viewer.show()
-        viewer.center_on_screen()  # Explicitly center after show
+        viewer.center_on_screen()
+        viewer.load_folder(folder, timer_enabled, timer_interval)
     
     startup.collection_selected.connect(on_collection_selected)
     startup.folder_selected.connect(on_folder_selected)
