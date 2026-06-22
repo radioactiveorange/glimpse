@@ -1,3 +1,18 @@
+## [1.6.0](https://github.com/radioactiveorange/glimpse/compare/v1.5.1...v1.6.0) (2026-06-22)
+
+### Features
+
+* performance optimizations with TurboJPEG and architecture V2 plan ([8833e81](https://github.com/radioactiveorange/glimpse/commit/8833e81057d18e34da1cca97cd22da73315df5f8)), closes [#performance](https://github.com/radioactiveorange/glimpse/issues/performance) [#image-loading](https://github.com/radioactiveorange/glimpse/issues/image-loading) [#feh-integration](https://github.com/radioactiveorange/glimpse/issues/feh-integration)
+
+### Bug Fixes
+
+* accurate single-pass progress bar for image loading ([9e423a2](https://github.com/radioactiveorange/glimpse/commit/9e423a206e5bdb0bde60232683bf646661a2ac0e))
+* restore grayscale and transform functionality after performance optimizations ([bdc92f7](https://github.com/radioactiveorange/glimpse/commit/bdc92f731d49991eb699d123af0c90ae9fe9f356))
+
+### Performance Improvements
+
+* optimize image navigation performance ([04101ae](https://github.com/radioactiveorange/glimpse/commit/04101aefc0a2c61b625bd3659123fc5484a8ba5c))
+
 ## [1.5.1](https://github.com/radioactiveorange/glimpse/compare/v1.5.0...v1.5.1) (2025-09-02)
 
 ### Bug Fixes
