@@ -2,6 +2,7 @@
 
 VERSION = "1.6.0"
 
+
 def get_version():
     """Get the current version string."""
     return VERSION

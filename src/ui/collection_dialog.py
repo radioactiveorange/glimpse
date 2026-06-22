@@ -24,7 +24,7 @@ from .components.sorting_panel import SortingPanel
 class CollectionDialog(CenteredDialog):
     """Comprehensive dialog for creating and editing collections with all settings."""
 
-    def __init__(self, parent=None, collection=None):
+    def __init__(self, parent=None, collection=None, existing_names=None):
         super().__init__(parent)
         self.collection = collection  # If provided, we're editing
         self.is_editing = collection is not None
@@ -33,7 +33,12 @@ class CollectionDialog(CenteredDialog):
         self.resize(650, 500)
 
         # Initialize values
-        self.collection_name = collection.name if collection else ""
+        if collection:
+            self.collection_name = collection.name
+        elif existing_names is not None:
+            self.collection_name = self._next_default_name(existing_names)
+        else:
+            self.collection_name = ""
         self.folder_paths = collection.paths[:] if collection else []
         self.sort_method = collection.sort_method if collection else "random"
         self.sort_descending = collection.sort_descending if collection else False
@@ -42,6 +47,14 @@ class CollectionDialog(CenteredDialog):
 
         self.init_ui()
         self.populate_existing_data()
+
+    @staticmethod
+    def _next_default_name(existing_names):
+        existing = set(existing_names)
+        n = 1
+        while f"Collection {n}" in existing:
+            n += 1
+        return f"Collection {n}"
 
     def init_ui(self):
         """Initialize the user interface."""
@@ -217,11 +230,12 @@ class CollectionDialog(CenteredDialog):
 
     def populate_existing_data(self):
         """Populate the dialog with existing collection data if editing."""
+        # Set collection name (pre-fill for both new and editing)
+        self.name_edit.setText(self.collection_name)
+        self.name_edit.selectAll()
+
         if not self.is_editing:
             return
-
-        # Set collection name
-        self.name_edit.setText(self.collection_name)
 
         # Populate folders
         for folder_path in self.folder_paths:

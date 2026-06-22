@@ -319,7 +319,8 @@ class StartupDialog(CenteredDialog):
 
     def create_new_collection(self):
         """Create a new collection using the comprehensive collection dialog."""
-        collection_dialog = CollectionDialog(self)
+        existing_names = [c.name for c in self.collection_manager.get_all_collections()]
+        collection_dialog = CollectionDialog(self, existing_names=existing_names)
         if collection_dialog.exec() == QDialog.Accepted:
             try:
                 # Get all the data from the dialog
