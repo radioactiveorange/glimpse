@@ -30,6 +30,7 @@ A cross-platform desktop application for viewing random images from folders or c
 ## ✨ Features
 
 ### 🎲 **Collections & Smart Sorting**
+
 - Organize multiple folders into collections
 - **Flexible sorting options**: Random (shuffle), Alphabetical (name), Full path, File size, Date modified
 - **Natural sorting**: Handles numbered files intelligently (image1.jpg, image2.jpg, image10.jpg)
@@ -38,22 +39,26 @@ A cross-platform desktop application for viewing random images from folders or c
 - Quick shuffle mode for single folders
 - History navigation with thumbnail panel
 
-### ⏰ **Timer System** 
+### ⏰ **Timer System**
+
 - Auto-advance with custom intervals (30 seconds to hours)
 - Play/pause/stop controls
 - Manual browsing mode
 
 ### 🖼️ **Image Viewing**
+
 - Zoom and pan support
 - Image transformations (flip, grayscale)
 - Configurable backgrounds (black, gray, adaptive)
 
 ### 🎨 **Interface**
+
 - Dark theme
 - Keyboard shortcuts and right-click menu
 - Minimal UI design
 
 ### 💾 **Collection Management**
+
 - Multi-folder collections with professional startup dialog
 - Persistent storage between sessions
 - Collection editing, deletion, and organization
@@ -68,20 +73,22 @@ A cross-platform desktop application for viewing random images from folders or c
 
 **[📥 Download Latest Release](https://github.com/radioactiveorange/glimpse/releases/latest)**
 
-| Platform | File | Installation |
-|----------|------|--------------|
-| **Windows** | `glimpse-viewer-*.exe` | Download and run directly |
-| **macOS** | `glimpse-viewer-*.dmg` | Download, mount, and drag to Applications |
-| **Linux** | `glimpse-viewer-*.deb` | `sudo dpkg -i glimpse-viewer-*.deb` |
-| **Linux** | `glimpse-viewer-*.tar.gz` | Extract and run `./glimpse` |
+| Platform    | File                      | Installation                              |
+|-------------|---------------------------|-------------------------------------------|
+| **Windows** | `glimpse-viewer-*.exe`    | Download and run directly                 |
+| **macOS**   | `glimpse-viewer-*.dmg`    | Download, mount, and drag to Applications |
+| **Linux**   | `glimpse-viewer-*.deb`    | `sudo dpkg -i glimpse-viewer-*.deb`       |
+| **Linux**   | `glimpse-viewer-*.tar.gz` | Extract and run `./glimpse`               |
 
 ### 🛠️ Development Installation
 
 **Prerequisites:**
+
 - Python 3.13+
 - [uv](https://docs.astral.sh/uv/) (fast Python package manager) - Install with: `pip install uv`
 
 **Run from Source:**
+
 ```bash
 # Clone the repository
 git clone https://github.com/radioactiveorange/glimpse.git
@@ -95,6 +102,7 @@ uv run main.py
 ```
 
 **Build Your Own Executable:**
+
 ```bash
 # Install build dependencies
 uv pip install pyinstaller pyside6
@@ -128,19 +136,19 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `←` `→` | Navigate previous/next image |
-| `Space` | Play/pause timer |
-| `Ctrl` `+` | Zoom in |
-| `Ctrl` `-` | Zoom out |
-| `Ctrl` `0` | Reset zoom and center image |
-| `F` | Flip image horizontally |
-| `G` | Toggle grayscale mode |
-| `B` | Cycle background modes (black/gray/adaptive) |
-| `H` | Toggle history panel |
-| `Esc` | Switch collection/folder |
-| `Right-click` | Open context menu |
+| Shortcut      | Action                                       |
+|---------------|----------------------------------------------|
+| `←` `→`       | Navigate previous/next image                 |
+| `Space`       | Play/pause timer                             |
+| `Ctrl` `+`    | Zoom in                                      |
+| `Ctrl` `-`    | Zoom out                                     |
+| `Ctrl` `0`    | Reset zoom and center image                  |
+| `F`           | Flip image horizontally                      |
+| `G`           | Toggle grayscale mode                        |
+| `B`           | Cycle background modes (black/gray/adaptive) |
+| `H`           | Toggle history panel                         |
+| `Esc`         | Switch collection/folder                     |
+| `Right-click` | Open context menu                            |
 
 ## 🖱️ Mouse Controls
 
@@ -153,6 +161,7 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 ## 🛠️ Advanced Features
 
 ### Collection Management
+
 - Professional startup dialog with ShuffleBird-inspired design
 - **Smart sorting system**: Choose between random shuffle or organized viewing (name, path, size, date)
 - **Natural/Human sorting**: Properly orders numbered files (image1, image2, image10 instead of image1, image10, image2)
@@ -165,12 +174,14 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 - Async loading for large collections (72K+ images tested)
 
 ### Image Processing  
+
 - Supported formats: JPG, JPEG, PNG, BMP, GIF
 - Recursive search in subfolders
 - Image transformations: flip horizontal/vertical, grayscale
 - Smart image caching for performance
 
 ### Customization
+
 - Background modes: Black, Gray, Smart Adaptive Color
 - Timer intervals: 30s, 1min, 2min, 5min, 10min, 30min, or custom
 - Configurable history panel with thumbnails
@@ -178,7 +189,7 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ## 🏗️ Technical Details
 
-- **Framework**: PySide6 (Qt for Python) 
+- **Framework**: PySide6 (Qt for Python)
 - **Architecture**: Clean modular structure with UI/core separation
 - **Collection Storage**: JSON files in platform-appropriate directories:
   - Linux: `~/.local/share/glimpse/collections/`
@@ -194,33 +205,38 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 
 ### System Requirements
 
-| Platform | Minimum | Recommended |
-|----------|---------|-------------|
-| **Windows** | Windows 10 | Windows 11 |
-| **macOS** | macOS 10.15 | macOS 12+ |
-| **Linux** | Ubuntu 20.04 / equivalent | Ubuntu 22.04+ |
-| **RAM** | 2GB | 4GB+ |
-| **Storage** | 50MB | 100MB+ |
+| Platform    | Minimum                   | Recommended   |
+|-------------|---------------------------|---------------|
+| **Windows** | Windows 10                | Windows 11    |
+| **macOS**   | macOS 10.15               | macOS 12+     |
+| **Linux**   | Ubuntu 20.04 / equivalent | Ubuntu 22.04+ |
+| **RAM**     | 2GB                       | 4GB+          |
+| **Storage** | 50MB                      | 100MB+        |
 
 ## 🎨 Screenshots
 
 ### Welcome Screen & Collections
+
 ![Welcome Screen](screenshots/welcome-screen.png)
 *Professional startup dialog for managing collections and quick folder access*
 
 ### Collection Creation & Editing
+
 ![Collection Dialog](screenshots/collection-dialog.png)
 *Comprehensive collection management with multi-folder support and sorting options*
 
 ### Main Viewer
+
 ![Main Viewer](screenshots/main-viewer.png)
 *Clean image viewing interface with history panel and media controls*
 
 ### Media Controls & Timer
+
 ![Media Controls](screenshots/media-controls.png)
 *Timer controls for auto-advance functionality with play/pause/stop*
 
 ### Context Menu & Options
+
 ![Context Menu](screenshots/context-menu.png)
 *Right-click context menu with image transformations and viewing options*
 
@@ -231,11 +247,13 @@ Alternatively, use "Quick Shuffle Folder" to browse any folder immediately.
 This project was inspired by and references several excellent applications:
 
 ### Primary Inspirations
+
 - **[ShuffleBird](https://github.com/AvantinumCode/ShuffleBird)** - Random image viewer with clean interface design. Glimpse's startup dialog and professional UI aesthetic draw inspiration from ShuffleBird's polished approach to image collection management.
 
 - **[GestureSesh](https://github.com/AvantinumCode/GestureSesh)** - Figure drawing application with timer functionality. The timer system and media-style controls in Glimpse were influenced by GestureSesh's focus on timed practice sessions.
 
 ### Design Philosophy
+
 We believe in building upon the excellent work of the open source community. These projects provided valuable insights into user experience design for image viewing applications and helped shape Glimpse's approach to collection management and viewing workflows.
 
 ---
@@ -261,8 +279,9 @@ This project was built collaboratively with Claude Code. We welcome:
 ### Reporting Issues
 
 When reporting bugs, please include:
+
 - Operating system and version
-- Python version 
+- Python version
 - Steps to reproduce
 - Expected vs actual behavior
 - Screenshots if relevant

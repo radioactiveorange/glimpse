@@ -5,7 +5,10 @@ description = "Cross-platform desktop application for viewing random images from
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pillow>=12.2.0",
     "pyside6>=6.9.1",
+    "pyturbojpeg>=2.2.0",
+    "ruff>=0.15.18",
 ]
 
 [project.optional-dependencies]
