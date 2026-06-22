@@ -8,12 +8,12 @@ from PySide6.QtCore import Qt, QTimer, QSize, Signal, QRect
 
 class CircularCountdown(QWidget):
     """A circular countdown timer widget with smooth animation."""
-    
+
     def __init__(self, total_time=0, parent=None):
         super().__init__(parent)
         self.total_time = 0
-        self.remaining_time = 0      # The actual time left
-        self.displayed_time = 0      # The smooth UI value
+        self.remaining_time = 0  # The actual time left
+        self.displayed_time = 0  # The smooth UI value
         self.setFixedSize(QSize(24, 24))
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
@@ -62,24 +62,24 @@ class CircularCountdown(QWidget):
 
 class ClickableLabel(QLabel):
     """A QLabel that emits signals for various mouse interactions."""
-    
+
     clicked = Signal()
     mouse_nav = True  # Always enabled
     back = Signal()
     forward = Signal()
     wheel_zoom = Signal(float)  # Signal for zooming, emits delta
     pan_start = Signal(object)  # Signal for starting pan (QPoint)
-    pan_move = Signal(object)   # Signal for pan movement (QPoint)
-    pan_end = Signal()          # Signal for ending pan
-    mouse_moved = Signal()      # Signal for mouse movement to show controls
-    
+    pan_move = Signal(object)  # Signal for pan movement (QPoint)
+    pan_end = Signal()  # Signal for ending pan
+    mouse_moved = Signal()  # Signal for mouse movement to show controls
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._is_panning = False
         self._last_pan_point = None
         # Enable mouse tracking to receive move events during drag
         self.setMouseTracking(True)
-    
+
     def mousePressEvent(self, event):
         """Handle mouse press events."""
         if event.button() == Qt.LeftButton:
@@ -94,18 +94,18 @@ class ClickableLabel(QLabel):
             elif event.button() == Qt.ForwardButton:
                 self.forward.emit()
         super().mousePressEvent(event)
-    
+
     def mouseMoveEvent(self, event):
         """Handle mouse move events for panning and show controls."""
         # Emit signal for showing controls on mouse movement
         self.mouse_moved.emit()
-        
+
         if self._is_panning and self._last_pan_point:
             delta = event.pos() - self._last_pan_point
             self.pan_move.emit(delta)
             self._last_pan_point = event.pos()
         super().mouseMoveEvent(event)
-    
+
     def mouseReleaseEvent(self, event):
         """Handle mouse release events."""
         if event.button() == Qt.LeftButton and self._is_panning:
@@ -114,7 +114,7 @@ class ClickableLabel(QLabel):
             self.setCursor(Qt.ArrowCursor)
             self.pan_end.emit()
         super().mouseReleaseEvent(event)
-    
+
     def wheelEvent(self, event):
         """Handle mouse wheel events for zooming."""
         angle = event.angleDelta().y()
@@ -125,7 +125,7 @@ class ClickableLabel(QLabel):
 
 class MinimalProgressBar(QWidget):
     """A minimal semi-transparent progress bar for the bottom of the window."""
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.total_time = 0
@@ -133,16 +133,16 @@ class MinimalProgressBar(QWidget):
         self.displayed_time = 0
         self.setFixedHeight(4)
         self.setAttribute(Qt.WA_TransparentForMouseEvents)
-        
+
         # Smooth animation timer - don't start immediately
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._on_tick)
-    
+
     def set_total_time(self, seconds):
         """Set the total countdown time."""
         self.total_time = float(max(1, seconds))
         self.update()
-    
+
     def set_remaining_time(self, seconds):
         """Set the remaining countdown time."""
         self.remaining_time = float(max(0, min(self.total_time, seconds)))
@@ -150,7 +150,7 @@ class MinimalProgressBar(QWidget):
         if not self._timer.isActive():
             self._timer.start(16)  # 60 FPS for smooth animation
         self.update()
-    
+
     def _on_tick(self):
         """Smooth animation tick handler."""
         alpha = 0.18  # Smoothing factor
@@ -158,34 +158,34 @@ class MinimalProgressBar(QWidget):
         if abs(self.displayed_time - self.remaining_time) < 0.01:
             self.displayed_time = self.remaining_time
         self.update()
-    
+
     def paintEvent(self, event):
         """Paint the minimal progress bar."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        
+
         rect = self.rect()
-        
+
         # Draw very subtle semi-transparent background
         bg_color = QColor("#000000")
         bg_color.setAlphaF(0.1)  # Much more subtle
         painter.fillRect(rect, bg_color)
-        
+
         # Draw progress
         if self.total_time > 0 and self.displayed_time > 0:
             fraction = self.displayed_time / self.total_time
             progress_width = int(rect.width() * fraction)
             progress_rect = QRect(0, 0, progress_width, rect.height())
-            
+
             # Create more subtle gradient for progress bar
             gradient = QLinearGradient(0, 0, progress_width, 0)
             progress_color_1 = QColor("#80b2ff")
             progress_color_1.setAlphaF(0.6)  # Reduced opacity
-            progress_color_2 = QColor("#4a90e2") 
+            progress_color_2 = QColor("#4a90e2")
             progress_color_2.setAlphaF(0.4)  # Reduced opacity
             gradient.setColorAt(0, progress_color_1)
             gradient.setColorAt(1, progress_color_2)
-            
+
             painter.fillRect(progress_rect, gradient)
 
 
@@ -203,19 +203,19 @@ def create_simple_icon(symbol, size=24, color="#ffffff"):
 
 class ButtonOverlay(QWidget):
     """Semi-transparent button overlay for bottom middle of the image viewer."""
-    
+
     previous_clicked = Signal()
-    pause_clicked = Signal() 
+    pause_clicked = Signal()
     stop_clicked = Signal()
     next_clicked = Signal()
     zoom_in_clicked = Signal()
     zoom_out_clicked = Signal()
-    
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_StyledBackground)
         self.setFixedSize(280, 50)  # Wider to accommodate zoom buttons
-        
+
         # Auto-hide functionality
         self._hide_timer = QTimer(self)
         self._hide_timer.setSingleShot(True)
@@ -223,13 +223,13 @@ class ButtonOverlay(QWidget):
         self._hide_delay = 3000  # 3 seconds
         self._is_auto_hiding = False
         self._manually_hidden = False  # Track if user manually hid controls
-        
+
         # Enable mouse tracking
         self.setMouseTracking(True)
-        
-        # Initially semi-transparent  
+
+        # Initially semi-transparent
         self.base_opacity = 0.15  # Background opacity
-        self.hover_opacity = 0.5   # Background opacity on hover
+        self.hover_opacity = 0.5  # Background opacity on hover
         self.setStyleSheet("""
             ButtonOverlay {
                 background-color: rgba(0, 0, 0, 38);
@@ -258,62 +258,97 @@ class ButtonOverlay(QWidget):
                 color: #ffffff;
             }
         """)
-        
+
         # Create layout
         layout = QHBoxLayout(self)
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setSpacing(5)
-        
+
         # Import the icon function
         from ..core.image_utils import create_professional_icon
-        
+
         # Create buttons with professional geometric icons (all same size)
         icon_size = 18  # Consistent size for all icons
         # Use solid white and apply opacity to the pixmaps directly
         icon_color = "#ffffff"
-        
+
         # Create base icons with transparency applied to pixmap
         self.prev_btn = QPushButton()
-        self.prev_btn._base_icon = self._create_transparent_icon("skip_previous", icon_size, icon_color, 0.7)
-        self.prev_btn._hover_icon = create_professional_icon("skip_previous", icon_size, icon_color)
+        self.prev_btn._base_icon = self._create_transparent_icon(
+            "skip_previous", icon_size, icon_color, 0.7
+        )
+        self.prev_btn._hover_icon = create_professional_icon(
+            "skip_previous", icon_size, icon_color
+        )
         self.prev_btn.setIcon(self.prev_btn._base_icon)
         self.prev_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        
+
         self.pause_btn = QPushButton()
-        self.pause_btn._base_icon = self._create_transparent_icon("pause", icon_size, icon_color, 0.7)
-        self.pause_btn._hover_icon = create_professional_icon("pause", icon_size, icon_color)
+        self.pause_btn._base_icon = self._create_transparent_icon(
+            "pause", icon_size, icon_color, 0.7
+        )
+        self.pause_btn._hover_icon = create_professional_icon(
+            "pause", icon_size, icon_color
+        )
         self.pause_btn.setIcon(self.pause_btn._base_icon)
         self.pause_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        
+
         self.stop_btn = QPushButton()
-        self.stop_btn._base_icon = self._create_transparent_icon("stop", icon_size, icon_color, 0.7)
-        self.stop_btn._hover_icon = create_professional_icon("stop", icon_size, icon_color)
+        self.stop_btn._base_icon = self._create_transparent_icon(
+            "stop", icon_size, icon_color, 0.7
+        )
+        self.stop_btn._hover_icon = create_professional_icon(
+            "stop", icon_size, icon_color
+        )
         self.stop_btn.setIcon(self.stop_btn._base_icon)
         self.stop_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.next_btn = QPushButton()
-        self.next_btn._base_icon = self._create_transparent_icon("skip_next", icon_size, icon_color, 0.7)
-        self.next_btn._hover_icon = create_professional_icon("skip_next", icon_size, icon_color)
+        self.next_btn._base_icon = self._create_transparent_icon(
+            "skip_next", icon_size, icon_color, 0.7
+        )
+        self.next_btn._hover_icon = create_professional_icon(
+            "skip_next", icon_size, icon_color
+        )
         self.next_btn.setIcon(self.next_btn._base_icon)
         self.next_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.zoom_out_btn = QPushButton()
-        self.zoom_out_btn._base_icon = self._create_transparent_icon("zoom_out", icon_size, icon_color, 0.7)
-        self.zoom_out_btn._hover_icon = create_professional_icon("zoom_out", icon_size, icon_color)
+        self.zoom_out_btn._base_icon = self._create_transparent_icon(
+            "zoom_out", icon_size, icon_color, 0.7
+        )
+        self.zoom_out_btn._hover_icon = create_professional_icon(
+            "zoom_out", icon_size, icon_color
+        )
         self.zoom_out_btn.setIcon(self.zoom_out_btn._base_icon)
         self.zoom_out_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        
+
         self.zoom_in_btn = QPushButton()
-        self.zoom_in_btn._base_icon = self._create_transparent_icon("zoom_in", icon_size, icon_color, 0.7)
-        self.zoom_in_btn._hover_icon = create_professional_icon("zoom_in", icon_size, icon_color)
+        self.zoom_in_btn._base_icon = self._create_transparent_icon(
+            "zoom_in", icon_size, icon_color, 0.7
+        )
+        self.zoom_in_btn._hover_icon = create_professional_icon(
+            "zoom_in", icon_size, icon_color
+        )
         self.zoom_in_btn.setIcon(self.zoom_in_btn._base_icon)
         self.zoom_in_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        
+
         # Setup hover behavior for each button
-        for btn in [self.prev_btn, self.pause_btn, self.stop_btn, self.next_btn, self.zoom_out_btn, self.zoom_in_btn]:
-            btn.enterEvent = lambda event, button=btn: self._on_button_enter(event, button)
-            btn.leaveEvent = lambda event, button=btn: self._on_button_leave(event, button)
-        
+        for btn in [
+            self.prev_btn,
+            self.pause_btn,
+            self.stop_btn,
+            self.next_btn,
+            self.zoom_out_btn,
+            self.zoom_in_btn,
+        ]:
+            btn.enterEvent = lambda event, button=btn: self._on_button_enter(
+                event, button
+            )
+            btn.leaveEvent = lambda event, button=btn: self._on_button_leave(
+                event, button
+            )
+
         # Connect signals
         self.prev_btn.clicked.connect(self.previous_clicked.emit)
         self.pause_btn.clicked.connect(self.pause_clicked.emit)
@@ -321,7 +356,7 @@ class ButtonOverlay(QWidget):
         self.next_btn.clicked.connect(self.next_clicked.emit)
         self.zoom_out_btn.clicked.connect(self.zoom_out_clicked.emit)
         self.zoom_in_btn.clicked.connect(self.zoom_in_clicked.emit)
-        
+
         # Add buttons to layout (zoom buttons on the sides)
         layout.addWidget(self.zoom_out_btn)
         layout.addWidget(self.prev_btn)
@@ -329,64 +364,69 @@ class ButtonOverlay(QWidget):
         layout.addWidget(self.stop_btn)
         layout.addWidget(self.next_btn)
         layout.addWidget(self.zoom_in_btn)
-    
+
     def set_pause_state(self, is_paused, timer_active=True):
         """Update pause button based on timer state."""
         from ..core.image_utils import create_professional_icon
+
         # If timer is not active, show play button regardless of pause state
         # If timer is active, show play when paused, pause when running
         icon_type = "play" if (not timer_active or is_paused) else "pause"
         icon_size = 18  # Match the consistent icon size
         icon_color = "#ffffff"
-        
+
         # Update both base and hover icons
-        self.pause_btn._base_icon = self._create_transparent_icon(icon_type, icon_size, icon_color, 0.7)
-        self.pause_btn._hover_icon = create_professional_icon(icon_type, icon_size, icon_color)
+        self.pause_btn._base_icon = self._create_transparent_icon(
+            icon_type, icon_size, icon_color, 0.7
+        )
+        self.pause_btn._hover_icon = create_professional_icon(
+            icon_type, icon_size, icon_color
+        )
         self.pause_btn.setIcon(self.pause_btn._base_icon)
-    
+
     def show(self):
         """Override show to start auto-hide timer."""
         super().show()
         self._start_auto_hide_timer()
-    
+
     def _create_transparent_icon(self, icon_type, size, color, opacity):
         """Create an icon with specified opacity applied to the pixmap."""
         from ..core.image_utils import create_professional_icon
         from PySide6.QtGui import QIcon, QPixmap, QPainter
-        
+
         # Create the base icon
         base_icon = create_professional_icon(icon_type, size, color)
-        
+
         # Get the pixmap and apply opacity
         base_pixmap = base_icon.pixmap(size, size)
         transparent_pixmap = QPixmap(size, size)
         transparent_pixmap.fill(Qt.transparent)
-        
+
         painter = QPainter(transparent_pixmap)
         painter.setOpacity(opacity)
         painter.drawPixmap(0, 0, base_pixmap)
         painter.end()
-        
+
         return QIcon(transparent_pixmap)
-    
+
     def _on_button_enter(self, event, button):
         """Handle button hover - switch to full opacity icon."""
         button.setIcon(button._hover_icon)
-        
+
     def _on_button_leave(self, event, button):
         """Handle button leave - switch back to semi-transparent icon."""
         button.setIcon(button._base_icon)
-    
+
     def enterEvent(self, event):
         """Show controls when mouse enters the overlay."""
         super().enterEvent(event)
         self._show_controls()
-        
+
     def leaveEvent(self, event):
         """Start auto-hide timer when mouse leaves the overlay."""
         super().leaveEvent(event)
         self._start_auto_hide_timer()
-    
+
     def _show_controls(self):
         """Show the controls and cancel auto-hide."""
         self._hide_timer.stop()
@@ -396,19 +436,19 @@ class ButtonOverlay(QWidget):
             super().show()  # Use super().show() to avoid triggering auto-hide timer
         # Restart the auto-hide timer
         self._start_auto_hide_timer()
-    
+
     def _start_auto_hide_timer(self):
         """Start or restart the auto-hide timer."""
         if not self._is_auto_hiding:
             self._hide_timer.stop()
             self._hide_timer.start(self._hide_delay)
-    
+
     def _auto_hide(self):
         """Hide the controls automatically."""
         self._is_auto_hiding = True
         # Don't set _manually_hidden for auto-hide, only for explicit hiding
         self.hide()
-    
+
     def show_for_new_image(self):
         """Show controls explicitly for new image loading (resets manual hide state)."""
         self._manually_hidden = False  # Reset manual hide state

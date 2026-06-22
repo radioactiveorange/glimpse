@@ -5,8 +5,15 @@ Proof of concept: Embed feh image viewer in Qt window for blazing fast performan
 
 import sys
 import subprocess
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QHBoxLayout
-from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QPushButton,
+    QHBoxLayout,
+)
+
 
 class FehViewer(QMainWindow):
     """Qt window that embeds feh for ultra-fast image viewing."""
@@ -70,11 +77,12 @@ class FehViewer(QMainWindow):
 
         # Launch feh with window-id to embed it
         cmd = [
-            'feh',
-            '--window-id', str(window_id),
-            '--scale-down',  # Fit image to window
-            '--auto-zoom',   # Auto zoom
-            img_path
+            "feh",
+            "--window-id",
+            str(window_id),
+            "--scale-down",  # Fit image to window
+            "--auto-zoom",  # Auto zoom
+            img_path,
         ]
 
         print(f"Launching: {' '.join(cmd)}")

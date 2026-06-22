@@ -5,8 +5,14 @@ from PySide6.QtCore import QEvent, Qt
 from ..core.image_utils import create_professional_icon
 
 
-def confirm_dialog(parent, title: str, message: str, confirm_text: str = "Yes",
-                   cancel_text: str = "No", destructive: bool = False) -> bool:
+def confirm_dialog(
+    parent,
+    title: str,
+    message: str,
+    confirm_text: str = "Yes",
+    cancel_text: str = "No",
+    destructive: bool = False,
+) -> bool:
     """Show a styled Yes/No confirmation dialog. Returns True if confirmed."""
     dlg = QDialog(parent)
     dlg.setWindowTitle(title)
@@ -30,7 +36,9 @@ def confirm_dialog(parent, title: str, message: str, confirm_text: str = "Yes",
     btn_row.addWidget(cancel_btn)
 
     confirm_icon = "delete" if destructive else "ok"
-    confirm_btn = create_dialog_action_button(confirm_text, primary=not destructive, icon_name=confirm_icon)
+    confirm_btn = create_dialog_action_button(
+        confirm_text, primary=not destructive, icon_name=confirm_icon
+    )
     if destructive:
         confirm_btn.setStyleSheet("""
             QPushButton {
@@ -59,10 +67,12 @@ def confirm_dialog(parent, title: str, message: str, confirm_text: str = "Yes",
     return dlg.exec() == QDialog.Accepted
 
 
-def create_standard_button(text: str, icon_name: str = None, large: bool = False) -> QPushButton:
+def create_standard_button(
+    text: str, icon_name: str = None, large: bool = False
+) -> QPushButton:
     """Create a standard button with consistent styling."""
     button = QPushButton(text)
-    
+
     # Set consistent size and styling with clear enabled/disabled states
     if large:
         button.setMinimumHeight(40)
@@ -115,22 +125,23 @@ def create_standard_button(text: str, icon_name: str = None, large: bool = False
                 border: 1px solid #404040;
             }
         """)
-    
+
     # Add icon if specified with disabled state support
     if icon_name:
         # Create both enabled and disabled icons
         enabled_icon = create_professional_icon(icon_name, 16, "#ffffff")
         disabled_icon = create_professional_icon(icon_name, 16, "#666666")
-        
+
         # Set the enabled icon
         button.setIcon(enabled_icon)
-        
+
         # Store disabled icon for state changes
         button._disabled_icon = disabled_icon
         button._enabled_icon = enabled_icon
-        
+
         # Override changeEvent to handle icon state changes
         original_change_event = button.changeEvent
+
         def change_event_handler(event):
             if event.type() == QEvent.Type.EnabledChange:
                 if button.isEnabled():
@@ -138,16 +149,21 @@ def create_standard_button(text: str, icon_name: str = None, large: bool = False
                 else:
                     button.setIcon(button._disabled_icon)
             original_change_event(event)
+
         button.changeEvent = change_event_handler
-        
+
         # Add consistent spacing between icon and text - larger for big buttons
         spacing = "12px" if large else "10px"
-        button.setStyleSheet(button.styleSheet() + f"text-align: left; padding-left: {spacing};")
-    
+        button.setStyleSheet(
+            button.styleSheet() + f"text-align: left; padding-left: {spacing};"
+        )
+
     return button
 
 
-def create_dialog_action_button(text: str, primary: bool = False, icon_name: str = None) -> QPushButton:
+def create_dialog_action_button(
+    text: str, primary: bool = False, icon_name: str = None
+) -> QPushButton:
     """Create a dialog action button (OK, Cancel, etc.) with consistent styling."""
     button = QPushButton(text)
     button.setMinimumHeight(32)
@@ -157,10 +173,10 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
     if icon_name:
         # Semantic colors so confirm/cancel are instantly distinguishable at a glance
         _ICON_COLORS = {
-            "ok": "#4caf50",      # green – confirm / save
+            "ok": "#4caf50",  # green – confirm / save
             "cancel": "#f44336",  # red   – cancel / discard
             "delete": "#f44336",  # red   – destructive
-            "play": "#4caf50",    # green – start / open
+            "play": "#4caf50",  # green – start / open
         }
         icon_color = _ICON_COLORS.get(icon_name, "#ffffff")
         enabled_icon = create_professional_icon(icon_name, 18, icon_color)
@@ -171,6 +187,7 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
         button._enabled_icon = enabled_icon
 
         original_change_event = button.changeEvent
+
         def change_event_handler(event):
             if event.type() == QEvent.Type.EnabledChange:
                 if button.isEnabled():
@@ -178,6 +195,7 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
                 else:
                     button.setIcon(button._disabled_icon)
             original_change_event(event)
+
         button.changeEvent = change_event_handler
 
     if primary:
@@ -227,7 +245,7 @@ def create_dialog_action_button(text: str, primary: bool = False, icon_name: str
                 border: 1px solid #404040;
             }
         """)
-    
+
     return button
 
 
