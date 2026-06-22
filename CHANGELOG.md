@@ -1,3 +1,9 @@
+## [1.7.1](https://github.com/radioactiveorange/glimpse/compare/v1.7.0...v1.7.1) (2026-06-22)
+
+### Bug Fixes
+
+* **ci:** use uv sync and install libturbojpeg system dep on all platforms ([34fe572](https://github.com/radioactiveorange/glimpse/commit/34fe57215c0d7b470b83a9774ceddd7c37f9e0c9))
+
 ## [1.6.0](https://github.com/radioactiveorange/glimpse/compare/v1.5.1...v1.6.0) (2026-06-22)
 
 ### Features
